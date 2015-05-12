@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// NewTraceProxy generates a proxy that logs queries.
 func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 	return &Proxy{
 		Driver: d,
