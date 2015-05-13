@@ -24,7 +24,7 @@ db, err := sql.Open("new-proxy-name", dataSourceName)
 # EXAMPLE: SQL tracer
 
 ``` go
-package proxy
+package main
 
 import (
 	"database/sql"
@@ -32,32 +32,32 @@ import (
 	"log"
 
 	"github.com/mattn/go-sqlite3"
-	"github.com/shogo82148/txmanager"
+	"github.com/shogo82148/go-sql-proxy"
 )
 
 func main() {
-	sql.Register("sqlite3-proxy", NewProxy(&sqlite3.SQLiteDriver{}, &Hooks{
-		Open: func(conn *Conn) error {
+	sql.Register("sqlite3-proxy", proxy.NewProxy(&sqlite3.SQLiteDriver{}, &proxy.Hooks{
+		Open: func(conn *proxy.Conn) error {
 			log.Println("Open")
 			return nil
 		},
-		Exec: func(stmt *Stmt, args []driver.Value, result driver.Result) error {
+		Exec: func(stmt *proxy.Stmt, args []driver.Value, result driver.Result) error {
 			log.Printf("Exec: %s; args = %v\n", stmt.QueryString, args)
 			return nil
 		},
-		Query: func(stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+		Query: func(stmt *proxy.Stmt, args []driver.Value, rows driver.Rows) error {
 			log.Printf("Query: %s; args = %v\n", stmt.QueryString, args)
 			return nil
 		},
-		Begin: func(conn *Conn) error {
+		Begin: func(conn *proxy.Conn) error {
 			log.Println("Begin")
 			return nil
 		},
-		Commit: func(tx *Tx) error {
+		Commit: func(tx *proxy.Tx) error {
 			log.Println("Commit")
 			return nil
 		},
-		Rollback: func(tx *Tx) error {
+		Rollback: func(tx *proxy.Tx) error {
 			log.Println("Rollback")
 			return nil
 		},
