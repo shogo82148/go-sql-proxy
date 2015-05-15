@@ -17,13 +17,27 @@ func (stmt *Stmt) NumInput() int {
 }
 
 func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) {
-	result, err := stmt.Stmt.Exec(args)
+	var ctx interface{}
+	var err error
+	var result driver.Result
+
+	if h := stmt.Proxy.Hooks.PostExec; h != nil {
+		defer func() { h(ctx, stmt, args, result) }()
+	}
+
+	if h := stmt.Proxy.Hooks.PreExec; h != nil {
+		if ctx, err = h(stmt, args); err != nil {
+			return nil, err
+		}
+	}
+
+	result, err = stmt.Stmt.Exec(args)
 	if err != nil {
 		return nil, err
 	}
 
 	if hook := stmt.Proxy.Hooks.Exec; hook != nil {
-		if err := hook(stmt, args, result); err != nil {
+		if err := hook(ctx, stmt, args, result); err != nil {
 			return nil, err
 		}
 	}

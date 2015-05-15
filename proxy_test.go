@@ -141,6 +141,111 @@ func TestNoPostOpen(t *testing.T) {
 	)
 }
 
+func testExec(t *testing.T, s *steps, driverName string, hooks *Hooks, expected []string) {
+	sql.Register(driverName, NewProxy(&sqlite3.SQLiteDriver{}, hooks))
+
+	db, err := sql.Open(driverName, ":memory:")
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+
+	_, err = db.Exec(
+		"CREATE TABLE t1 (id INTEGER PRIMARY KEY)",
+	)
+	if err != nil {
+		t.Fatalf("create table failed: %v", err)
+	}
+
+	if err := s.verify(expected); err != nil {
+		t.Errorf("%s: %s", driverName, err)
+		return
+	}
+}
+
+func TestExecAll(t *testing.T) {
+	s := newSteps()
+	var elapsed time.Duration
+
+	testExec(
+		t,
+		s,
+		"sqlite3-proxy-test-exec",
+		&Hooks{
+			PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
+				s.record("PreExec")
+				return time.Now(), nil
+			},
+			Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+				s.record("Exec")
+				return nil
+			},
+			PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+				s.record("PostExec")
+				elapsed = time.Since(ctx.(time.Time))
+				return nil
+			},
+		},
+		[]string{
+			"PreExec",
+			"Exec",
+			"PostExec",
+		},
+	)
+
+	if elapsed == 0 {
+		t.Errorf("'elapsed' should not be zero")
+		return
+	}
+}
+
+func TestExecNoPreExec(t *testing.T) {
+	s := newSteps()
+
+	testExec(
+		t,
+		s,
+		"sqlite3-proxy-test-no-preexec",
+		&Hooks{
+			Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+				s.record("Exec")
+				return nil
+			},
+			PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+				s.record("PostExec")
+				return nil
+			},
+		},
+		[]string{
+			"Exec",
+			"PostExec",
+		},
+	)
+}
+
+func TestExecNoPostExec(t *testing.T) {
+	s := newSteps()
+
+	testExec(
+		t,
+		s,
+		"sqlite3-proxy-test-no-postexec",
+		&Hooks{
+			PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
+				s.record("PreExec")
+				return nil, nil
+			},
+			Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+				s.record("Exec")
+				return nil
+			},
+		},
+		[]string{
+			"PreExec",
+			"Exec",
+		},
+	)
+}
+
 func TestProxy(t *testing.T) {
 	statements := []string{}
 	sql.Register("sqlite3-proxy", NewProxy(&sqlite3.SQLiteDriver{}, &Hooks{
@@ -149,7 +254,7 @@ func TestProxy(t *testing.T) {
 			statements = append(statements, "Open")
 			return nil
 		},
-		Exec: func(stmt *Stmt, args []driver.Value, result driver.Result) error {
+		Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
 			t.Logf("Exec: %s; args = %v", stmt.QueryString, args)
 			statements = append(statements, fmt.Sprintf("Exec: %s; args = %v", stmt.QueryString, args))
 			return nil
