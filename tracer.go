@@ -11,7 +11,7 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 	return &Proxy{
 		Driver: d,
 		Hooks: &Hooks{
-			Open: func(conn *Conn) error {
+			Open: func(_ interface{}, _ driver.Conn) error {
 				logger.Output(6, "Open")
 				return nil
 			},

@@ -6,15 +6,145 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 	"github.com/shogo82148/txmanager"
 )
 
+type steps struct {
+	recorded []string
+}
+
+func newSteps() *steps {
+	return &steps{recorded: []string{}}
+}
+
+func (s *steps) record(in string) {
+	s.recorded = append(s.recorded, in)
+}
+
+func (s *steps) verify(expected []string) error {
+	if len(expected) != len(s.recorded) {
+		return fmt.Errorf("Number of steps do not match (%d != %d)", len(expected), len(s.recorded))
+	}
+
+	for i := range expected {
+		if s.recorded[i] != expected[i] {
+			return fmt.Errorf("Expected '%s', got '%s' for step %d",
+				expected[i],
+				s.recorded[i],
+				i,
+			)
+		}
+	}
+
+	return nil
+}
+
+func testOpen(t *testing.T, s *steps, driverName string, hooks *Hooks, expected []string) {
+	sql.Register(driverName, NewProxy(&sqlite3.SQLiteDriver{}, hooks))
+
+	db, err := sql.Open(driverName, ":memory:")
+	if err != nil {
+		t.Fatalf("%s: Open failed: %v", driverName, err)
+	}
+	// The sql driver's Open() is not called until some sort of
+	// statement is executed.
+	db.Query("SELECT 1")
+	if err := s.verify(expected); err != nil {
+		t.Errorf("%s: %s", driverName, err)
+		return
+	}
+}
+
+func TestOpenAll(t *testing.T) {
+	// driverNames must be unique for every call to sql.Register()
+	var elapsed time.Duration
+
+	s := newSteps()
+	testOpen(
+		t,
+		s,
+		"sqlite3-proxy-test-open",
+		&Hooks{
+			PreOpen: func(name string) (interface{}, error) {
+				s.record("PreOpen")
+				return time.Now(), nil
+			},
+			Open: func(_ interface{}, _ driver.Conn) error {
+				s.record("Open")
+				return nil
+			},
+			PostOpen: func(ctx interface{}, _ driver.Conn) error {
+				elapsed = time.Since(ctx.(time.Time))
+				s.record("PostOpen")
+				return nil
+			},
+		},
+		[]string{
+			"PreOpen",
+			"Open",
+			"PostOpen",
+		},
+	)
+
+	if elapsed == 0 {
+		t.Errorf("'elapsed' should not be zero")
+		return
+	}
+}
+
+func TestNoPreOpen(t *testing.T) {
+	s := newSteps()
+	testOpen(
+		t,
+		s,
+		"sqlite3-proxy-test-no-preopen",
+		&Hooks{
+			Open: func(_ interface{}, _ driver.Conn) error {
+				s.record("Open")
+				return nil
+			},
+			PostOpen: func(_ interface{}, _ driver.Conn) error {
+				s.record("PostOpen")
+				return nil
+			},
+		},
+		[]string{
+			"Open",
+			"PostOpen",
+		},
+	)
+}
+
+func TestNoPostOpen(t *testing.T) {
+	s := newSteps()
+	testOpen(
+		t,
+		s,
+		"sqlite3-proxy-test-no-postopen",
+		&Hooks{
+			PreOpen: func(_ string) (interface{}, error) {
+				s.record("PreOpen")
+				return nil, nil
+			},
+			Open: func(_ interface{}, _ driver.Conn) error {
+				s.record("Open")
+				return nil
+			},
+		},
+		[]string{
+			"PreOpen",
+			"Open",
+		},
+	)
+}
+
 func TestProxy(t *testing.T) {
 	statements := []string{}
 	sql.Register("sqlite3-proxy", NewProxy(&sqlite3.SQLiteDriver{}, &Hooks{
-		Open: func(conn *Conn) error {
+		Open: func(_ interface{}, _ driver.Conn) error {
 			t.Log("Open")
 			statements = append(statements, "Open")
 			return nil
@@ -48,7 +178,7 @@ func TestProxy(t *testing.T) {
 
 	db, err := sql.Open("sqlite3-proxy", ":memory:")
 	if err != nil {
-		t.Fatalf("Open filed: %v", err)
+		t.Fatalf("Open failed: %v", err)
 	}
 
 	_, err = db.Exec(
