@@ -37,15 +37,15 @@ import (
 
 func main() {
 	sql.Register("sqlite3-proxy", proxy.NewProxy(&sqlite3.SQLiteDriver{}, &proxy.Hooks{
-		Open: func(conn *proxy.Conn) error {
+		Open: func(_ interface{}, conn *proxy.Conn) error {
 			log.Println("Open")
 			return nil
 		},
-		Exec: func(stmt *proxy.Stmt, args []driver.Value, result driver.Result) error {
+		Exec: func(_ interface{}, stmt *proxy.Stmt, args []driver.Value, result driver.Result) error {
 			log.Printf("Exec: %s; args = %v\n", stmt.QueryString, args)
 			return nil
 		},
-		Query: func(stmt *proxy.Stmt, args []driver.Value, rows driver.Rows) error {
+		Query: func(_ interface{}, stmt *proxy.Stmt, args []driver.Value, rows driver.Rows) error {
 			log.Printf("Query: %s; args = %v\n", stmt.QueryString, args)
 			return nil
 		},
