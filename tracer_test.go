@@ -1,9 +1,11 @@
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"database/sql"
 	"log"
+	"regexp"
 	"testing"
 
 	"github.com/mattn/go-sqlite3"
@@ -45,14 +47,28 @@ func TestTraceProxy(t *testing.T) {
 		t.Errorf("got %d\nwant 1", id)
 	}
 
-	want := `tracer_test.go:25: Open
-tracer_test.go:25: Exec: CREATE TABLE t1 (id INTEGER PRIMARY KEY); args = []
-txmanager.go:177: Begin
-txmanager.go:182: Exec: INSERT INTO t1 (id) VALUES(?); args = [1]
-tracer_test.go:34: Commit
-tracer_test.go:39: Query: SELECT id FROM t1 WHERE id = ?; args = [1]
-`
-	if buf.String() != want {
-		t.Errorf("got:\n%s\nwant:\n%s", buf.String(), want)
+	expected := []*regexp.Regexp{
+		// Fake time compinent with (\d+\.\d+[^\)]+)
+		regexp.MustCompile(`tracer_test.go:27: Open \(\d+\.\d+[^\)]+\)`),
+		regexp.MustCompile(`tracer_test.go:27: Exec: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] \(\d+\.\d+[^\)]+\)`),
+		regexp.MustCompile(`txmanager.go:177: Begin`),
+		regexp.MustCompile(`txmanager.go:182: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] \(\d+\.\d+[^\)]+\)`),
+		regexp.MustCompile(`tracer_test.go:36: Commit`),
+		regexp.MustCompile(`tracer_test.go:41: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] \(\d+\.\d+[^\)]+\)`),
+	}
+
+	scanner := bufio.NewScanner(buf)
+	i := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if i >= len(expected) {
+			t.Errorf("Got more lines than expected (%s)", line)
+			break
+		}
+
+		if !expected[i].MatchString(line) {
+			t.Errorf("\ngot: %s\nwant: %s", line, expected[i])
+		}
+		i++
 	}
 }

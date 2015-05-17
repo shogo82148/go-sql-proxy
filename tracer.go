@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"log"
+	"time"
 )
 
 // NewTraceProxy generates a proxy that logs queries.
@@ -11,16 +12,47 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 	return &Proxy{
 		Driver: d,
 		Hooks: &Hooks{
-			Open: func(conn *Conn) error {
-				logger.Output(6, "Open")
+			PreOpen: func(_ string) (interface{}, error) {
+				return time.Now(), nil
+			},
+			PostOpen: func(ctx interface{}, _ driver.Conn) error {
+				logger.Output(
+					7,
+					fmt.Sprintf(
+						"Open (%s)",
+						time.Since(ctx.(time.Time)),
+					),
+				)
 				return nil
 			},
-			Exec: func(stmt *Stmt, args []driver.Value, result driver.Result) error {
-				logger.Output(6, fmt.Sprintf("Exec: %s; args = %v", stmt.QueryString, args))
+			PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
+				return time.Now(), nil
+			},
+			PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Result) error {
+				logger.Output(
+					7,
+					fmt.Sprintf(
+						"Exec: %s; args = %v (%s)",
+						stmt.QueryString,
+						args,
+						time.Since(ctx.(time.Time)),
+					),
+				)
 				return nil
 			},
-			Query: func(stmt *Stmt, args []driver.Value, rows driver.Rows) error {
-				logger.Output(8, fmt.Sprintf("Query: %s; args = %v", stmt.QueryString, args))
+			PreQuery: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
+				return time.Now(), nil
+			},
+			PostQuery: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Rows) error {
+				logger.Output(
+					9,
+					fmt.Sprintf(
+						"Query: %s; args = %v (%s)",
+						stmt.QueryString,
+						args,
+						time.Since(ctx.(time.Time)),
+					),
+				)
 				return nil
 			},
 			Begin: func(conn *Conn) error {
