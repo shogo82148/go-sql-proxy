@@ -78,6 +78,49 @@ func main() {
 }
 ```
 
+# EXAMPLE: elapsed time logger
+
+``` go
+package main
+
+import (
+	"database/sql"
+	"database/sql/driver"
+	"log"
+	"time"
+
+	"github.com/mattn/go-sqlite3"
+	"github.com/shogo82148/go-sql-proxy"
+)
+
+func main() {
+	sql.Register("sqlite3-proxy", proxy.NewProxy(&sqlite3.SQLiteDriver{}, &proxy.Hooks{
+		PreExec: func(_ *proxy.Stmt, _ []driver.Value, _ driver.Result) (interface{}, error) {
+			// The first return value(time.Now()) is passed to both `Hooks.Exec` and `Hook.ExecPost` callbacks.
+			return time.Now(), nil
+		},
+		PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Result) error {
+			// The `ctx` parameter is the return value supplied from the `Hooks.PreExec` method, and may be nil.
+			log.Printf("Query: %s; args = %v (%s)\n", stmt.QueryString, args, time.Since(ctx.(time.Time)))
+		},
+	}))
+
+	db, err := sql.Open("sqlite3-proxy", ":memory:")
+	if err != nil {
+		log.Fatalf("Open filed: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(
+		"CREATE TABLE t1 (id INTEGER PRIMARY KEY)",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+
 # LICENSE
 
 This software is released under the MIT License, see LICENSE file.
