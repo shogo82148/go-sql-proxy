@@ -19,7 +19,7 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 				logger.Output(6, fmt.Sprintf("Exec: %s; args = %v", stmt.QueryString, args))
 				return nil
 			},
-			Query: func(stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+			Query: func(_ interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
 				logger.Output(8, fmt.Sprintf("Query: %s; args = %v", stmt.QueryString, args))
 				return nil
 			},

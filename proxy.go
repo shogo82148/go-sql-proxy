@@ -74,10 +74,40 @@ type Hooks struct {
 	// `Hooks.PreExec` method, and may be nil.
 	PostExec func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error
 
-	Query    func(stmt *Stmt, args []driver.Value, rows driver.Rows) error
-	Begin    func(conn *Conn) error
-	Commit   func(tx *Tx) error
-	Rollback func(tx *Tx) error
+	// PreQuery is a callback that gets called prior to calling
+	// `Stmt.Query`, and is ALWAYS called. If this callback returns an
+	// error, the underlying driver's `Stmt.Query` and `Hooks.Open` methods
+	// are not called.
+	//
+	// The first return value is passed to both `Hooks.Query` and
+	// `Hooks.PostQuery` callbacks. You may specify anything you want.
+	// Return nil if you do not need to use it.
+	//
+	// The second return value is indicates the error found while
+	// executing this hook. If this callback returns an error,
+	// the underlying driver's `Driver.Exec` method and `Hooks.Exec`
+	// methods are not called.
+	PreQuery  func(stmt *Stmt, args []driver.Value) (interface{}, error)
+
+	// Query is called after the underlying driver's `Driver.Query` method
+	// returns without any errors.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreQuery` method, and may be nil.
+	//
+	// If this callback returns an error, then the error from this
+	// callback is returned by the `Stmt.Exec` method.
+	Query     func(ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
+
+	// PostQuery is a callback that gets called at the end of
+	// the call to `Stmt.Query`. It is ALWAYS called.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreQuery` method, and may be nil.
+	PostQuery func(ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
+	Begin     func(conn *Conn) error
+	Commit    func(tx *Tx) error
+	Rollback  func(tx *Tx) error
 }
 
 func NewProxy(driver driver.Driver, hooks *Hooks) *Proxy {
