@@ -51,8 +51,11 @@ func TestTraceProxy(t *testing.T) {
 		// Fake time compinent with (\d+\.\d+[^\)]+)
 		regexp.MustCompile(`tracer_test.go:27: Open \(\d+\.\d+[^\)]+\)`),
 		regexp.MustCompile(`tracer_test.go:27: Exec: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] \(\d+\.\d+[^\)]+\)`),
-		regexp.MustCompile(`txmanager.go:177: Begin`),
-		regexp.MustCompile(`txmanager.go:182: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] \(\d+\.\d+[^\)]+\)`),
+		// The line numbers on these two lines may change depending on the version
+		// of txmanager that you have. For now, we cross our fingers that the
+		// filename doesn't change ever, but the line numbers may change.
+		regexp.MustCompile(`txmanager.go:\d+: Begin`),
+		regexp.MustCompile(`txmanager.go:\d+: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] \(\d+\.\d+[^\)]+\)`),
 		regexp.MustCompile(`tracer_test.go:36: Commit`),
 		regexp.MustCompile(`tracer_test.go:41: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] \(\d+\.\d+[^\)]+\)`),
 	}
