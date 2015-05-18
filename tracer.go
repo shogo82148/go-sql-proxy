@@ -61,16 +61,34 @@ func NewTraceProxy(d driver.Driver, o Outputter) *Proxy {
 				)
 				return nil
 			},
-			Begin: func(conn *Conn) error {
-				o.Output(6, "Begin")
+			PreBegin: func(_ *Conn) (interface{}, error) {
+				return time.Now(), nil
+			},
+			PostBegin: func(ctx interface{}, _ *Conn) error {
+				o.Output(
+					6,
+					fmt.Sprintf("Begin (%s)", time.Since(ctx.(time.Time))),
+				)
 				return nil
 			},
-			Commit: func(tx *Tx) error {
-				o.Output(6, "Commit")
+			PreCommit: func(_ *Tx) (interface{}, error) {
+				return time.Now(), nil
+			},
+			PostCommit: func(ctx interface{}, _ *Tx) error {
+				o.Output(
+					7,
+					fmt.Sprintf("Commit (%s)", time.Since(ctx.(time.Time))),
+				)
 				return nil
 			},
-			Rollback: func(tx *Tx) error {
-				o.Output(8, "Rollback")
+			PreRollback: func(_ *Tx) (interface{}, error) {
+				return time.Now(), nil
+			},
+			PostRollback: func(ctx interface{}, _ *Tx) error {
+				o.Output(
+					8,
+					fmt.Sprintf("Rollback (%s)", time.Since(ctx.(time.Time))),
+				)
 				return nil
 			},
 		},
