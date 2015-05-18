@@ -1,6 +1,8 @@
 package proxy
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+)
 
 type Conn struct {
 	Conn  driver.Conn
@@ -24,13 +26,27 @@ func (conn *Conn) Close() error {
 }
 
 func (conn *Conn) Begin() (driver.Tx, error) {
-	tx, err := conn.Conn.Begin()
+	var err error
+	var ctx interface{}
+
+	var tx driver.Tx
+	if h := conn.Proxy.Hooks.PostBegin; h != nil {
+		defer func() { h(ctx, conn) }()
+	}
+
+	if h := conn.Proxy.Hooks.PreBegin; h != nil {
+		if ctx, err = h(conn); err != nil {
+			return nil, err
+		}
+	}
+
+	tx, err = conn.Conn.Begin()
 	if err != nil {
 		return nil, err
 	}
 
 	if hook := conn.Proxy.Hooks.Begin; hook != nil {
-		if err := hook(conn); err != nil {
+		if err = hook(ctx, conn); err != nil {
 			tx.Rollback()
 			return nil, err
 		}

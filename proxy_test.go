@@ -325,17 +325,17 @@ func TestProxy(t *testing.T) {
 			statements = append(statements, fmt.Sprintf("Query: %s; args = %v", stmt.QueryString, args))
 			return nil
 		},
-		Begin: func(conn *Conn) error {
+		Begin: func(_ interface{}, _ *Conn) error {
 			t.Log("Begin")
 			statements = append(statements, "Begin")
 			return nil
 		},
-		Commit: func(tx *Tx) error {
+		Commit: func(_ interface{}, _ *Tx) error {
 			t.Log("Commit")
 			statements = append(statements, "Commit")
 			return nil
 		},
-		Rollback: func(tx *Tx) error {
+		Rollback: func(_ interface{}, _ *Tx) error {
 			t.Log("Rollback")
 			statements = append(statements, "Rollback")
 			return nil
