@@ -3,12 +3,18 @@ package proxy
 import (
 	"database/sql/driver"
 	"fmt"
-	"log"
 	"time"
 )
 
+// Outputter is what is used by the tracing proxy created via `NewTraceProxy`.
+// Anything that implements a `log.Logger` style `Output` method will satisfy
+// this interface.
+type Outputter interface{
+	Output(calldepth int, s string) error
+}
+
 // NewTraceProxy generates a proxy that logs queries.
-func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
+func NewTraceProxy(d driver.Driver, o Outputter) *Proxy {
 	return &Proxy{
 		Driver: d,
 		Hooks: &Hooks{
@@ -16,7 +22,7 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 				return time.Now(), nil
 			},
 			PostOpen: func(ctx interface{}, _ driver.Conn) error {
-				logger.Output(
+				o.Output(
 					7,
 					fmt.Sprintf(
 						"Open (%s)",
@@ -29,7 +35,7 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 				return time.Now(), nil
 			},
 			PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Result) error {
-				logger.Output(
+				o.Output(
 					7,
 					fmt.Sprintf(
 						"Exec: %s; args = %v (%s)",
@@ -44,7 +50,7 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 				return time.Now(), nil
 			},
 			PostQuery: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Rows) error {
-				logger.Output(
+				o.Output(
 					9,
 					fmt.Sprintf(
 						"Query: %s; args = %v (%s)",
@@ -56,15 +62,15 @@ func NewTraceProxy(d driver.Driver, logger *log.Logger) *Proxy {
 				return nil
 			},
 			Begin: func(conn *Conn) error {
-				logger.Output(6, "Begin")
+				o.Output(6, "Begin")
 				return nil
 			},
 			Commit: func(tx *Tx) error {
-				logger.Output(6, "Commit")
+				o.Output(6, "Commit")
 				return nil
 			},
 			Rollback: func(tx *Tx) error {
-				logger.Output(8, "Rollback")
+				o.Output(8, "Rollback")
 				return nil
 			},
 		},
