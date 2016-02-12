@@ -37,7 +37,7 @@ import (
 
 func main() {
 	sql.Register("sqlite3-proxy", proxy.NewProxy(&sqlite3.SQLiteDriver{}, &proxy.Hooks{
-		Open: func(_ interface{}, conn *proxy.Conn) error {
+		Open: func(_ interface{}, conn driver.Conn) error {
 			log.Println("Open")
 			return nil
 		},
@@ -49,18 +49,19 @@ func main() {
 			log.Printf("Query: %s; args = %v\n", stmt.QueryString, args)
 			return nil
 		},
-		Begin: func(conn *proxy.Conn) error {
+		Begin: func(_ interface{}, conn *proxy.Conn) error {
 			log.Println("Begin")
 			return nil
 		},
-		Commit: func(tx *proxy.Tx) error {
+		Commit: func(_ interface{}, tx *proxy.Tx) error {
 			log.Println("Commit")
 			return nil
 		},
-		Rollback: func(tx *proxy.Tx) error {
+		Rollback: func(_ interface{}, tx *proxy.Tx) error {
 			log.Println("Rollback")
 			return nil
 		},
+
 	}))
 
 	db, err := sql.Open("sqlite3-proxy", ":memory:")
@@ -95,13 +96,14 @@ import (
 
 func main() {
 	sql.Register("sqlite3-proxy", proxy.NewProxy(&sqlite3.SQLiteDriver{}, &proxy.Hooks{
-		PreExec: func(_ *proxy.Stmt, _ []driver.Value, _ driver.Result) (interface{}, error) {
+		PreExec: func(_ *proxy.Stmt, _ []driver.Value) (interface{}, error) {
 			// The first return value(time.Now()) is passed to both `Hooks.Exec` and `Hook.ExecPost` callbacks.
 			return time.Now(), nil
 		},
-		PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Result) error {
+		PostExec: func(ctx interface{}, stmt *proxy.Stmt, args []driver.Value, _ driver.Result) error {
 			// The `ctx` parameter is the return value supplied from the `Hooks.PreExec` method, and may be nil.
 			log.Printf("Query: %s; args = %v (%s)\n", stmt.QueryString, args, time.Since(ctx.(time.Time)))
+			return nil
 		},
 	}))
 
