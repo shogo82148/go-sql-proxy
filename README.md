@@ -36,6 +36,7 @@ db, err := sql.Open("another:tracer", dataSourceName)
 ```
 
 `proxy.RegisterTracer` is a shortcut to `proxy.NewTraceProxy` and `sql.Register`.
+You can use it if your Go is from version 1.5 onward.
 
 ``` go
 proxy.RegisterTracer()
