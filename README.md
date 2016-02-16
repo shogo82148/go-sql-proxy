@@ -5,6 +5,10 @@
 A proxy package is a proxy driver for dabase/sql.
 You can hook SQL execution.
 
+## SYNOPSIS
+
+### Basic Usage
+
 First, register new proxy driver.
 
 ``` go
@@ -20,8 +24,28 @@ And then, open new database handle with the registered proxy driver.
 db, err := sql.Open("new-proxy-name", dataSourceName)
 ```
 
+### Use Ready‐Made SQL tracer
 
-# EXAMPLE: SQL tracer
+`proxy.NewTraceProxy` is an example of SQL tracer.
+
+``` go
+logger := New(os.Stderr, "", LstdFlags)
+proxy := NewTraceProxy(&another.Driver{}, logger)
+sql.Register("another:tracer", proxy)
+db, err := sql.Open("another:tracer", dataSourceName)
+```
+
+`proxy.RegisterTracer` is a shortcut to `proxy.NewTraceProxy` and `sql.Register`.
+You can use it if your Go is from version 1.5 onward.
+
+``` go
+proxy.RegisterTracer()
+db, err := sql.Open("another:tracer", dataSourceName)
+```
+
+## EXAMPLES
+
+### EXAMPLE: SQL tracer
 
 ``` go
 package main
@@ -79,7 +103,7 @@ func main() {
 }
 ```
 
-# EXAMPLE: elapsed time logger
+### EXAMPLE: elapsed time logger
 
 ``` go
 package main
@@ -123,7 +147,7 @@ func main() {
 ```
 
 
-# LICENSE
+## LICENSE
 
 This software is released under the MIT License, see LICENSE file.
 
