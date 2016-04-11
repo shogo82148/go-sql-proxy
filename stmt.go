@@ -73,3 +73,10 @@ func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error) {
 
 	return rows, nil
 }
+
+func (stmt *Stmt) ColumnConverter(idx int) driver.ValueConverter {
+	if conv, ok := stmt.Stmt.(driver.ColumnConverter); ok {
+		return conv.ColumnConverter(idx)
+	}
+	return driver.DefaultParameterConverter
+}
