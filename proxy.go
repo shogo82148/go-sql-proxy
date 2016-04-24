@@ -119,7 +119,7 @@ type Hooks struct {
 	// executing this hook. If this callback returns an error,
 	// the underlying driver's `Conn.Begin` method and `Hooks.Begin`
 	// methods are not called.
-	PreBegin  func(conn *Conn) (interface{}, error)
+	PreBegin func(conn *Conn) (interface{}, error)
 
 	// Begin is called after the underlying driver's `Conn.Begin` method
 	// returns without any errors.
@@ -129,7 +129,7 @@ type Hooks struct {
 	//
 	// If this callback returns an error, then the error from this
 	// callback is returned by the `Conn.Begin` method.
-	Begin     func(ctx interface{}, conn *Conn) error
+	Begin func(ctx interface{}, conn *Conn) error
 
 	// PostBegin is a callback that gets called at the end of
 	// the call to `Conn.Begin`. It is ALWAYS called.
@@ -151,7 +151,7 @@ type Hooks struct {
 	// executing this hook. If this callback returns an error,
 	// the underlying driver's `Tx.Commit` method and `Hooks.Commit`
 	// methods are not called.
-	PreCommit  func(tx *Tx) (interface{}, error)
+	PreCommit func(tx *Tx) (interface{}, error)
 
 	// Commit is called after the underlying driver's `Tx.Commit` method
 	// returns without any errors.
@@ -161,7 +161,7 @@ type Hooks struct {
 	//
 	// If this callback returns an error, then the error from this
 	// callback is returned by the `Tx.Commit` method.
-	Commit     func(ctx interface{}, tx *Tx) error
+	Commit func(ctx interface{}, tx *Tx) error
 
 	// PostCommit is a callback that gets called at the end of
 	// the call to `Tx.Commit`. It is ALWAYS called.
@@ -182,7 +182,7 @@ type Hooks struct {
 	// The second return value is indicates the error found while
 	// executing this hook. If this callback returns an error,
 	// the underlying driver's `Tx.Rollback` method and `Hooks.Rollback`
-	PreRollback  func(tx *Tx) (interface{}, error)
+	PreRollback func(tx *Tx) (interface{}, error)
 
 	// Rollback is called after the underlying driver's `Tx.Rollback` method
 	// returns without any errors.
@@ -192,7 +192,7 @@ type Hooks struct {
 	//
 	// If this callback returns an error, then the error from this
 	// callback is returned by the `Tx.Rollback` method.
-	Rollback     func(ctx interface{}, tx *Tx) error
+	Rollback func(ctx interface{}, tx *Tx) error
 
 	// PostRollback is a callback that gets called at the end of
 	// the call to `Tx.Rollback`. It is ALWAYS called.

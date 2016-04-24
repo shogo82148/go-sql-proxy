@@ -8,17 +8,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/shogo82148/txmanager"
 )
 
 type proxyTest struct {
 	*testing.T
 	recorded []string
-	seq chan int
+	seq      chan int
 }
 
 var tseq chan int
+
 func init() {
 	tseq = make(chan int)
 	go func() {
