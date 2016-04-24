@@ -4,11 +4,14 @@ package proxy
 
 import "database/sql/driver"
 
+// Proxy is a sql driver.
+// It adds hook points to other sql drivers.
 type Proxy struct {
 	Driver driver.Driver
 	Hooks  *Hooks
 }
 
+// Hooks is callback functions for the proxy.
 type Hooks struct {
 	// PreOpen is a callback that gets called before any
 	// attempt to open the sql connection is made, and is ALWAYS
@@ -202,6 +205,7 @@ type Hooks struct {
 	PostRollback func(ctx interface{}, tx *Tx) error
 }
 
+// NewProxy creates new Proxy driver.
 func NewProxy(driver driver.Driver, hooks *Hooks) *Proxy {
 	if hooks == nil {
 		hooks = &Hooks{}
@@ -212,6 +216,8 @@ func NewProxy(driver driver.Driver, hooks *Hooks) *Proxy {
 	}
 }
 
+// Open creates new connection which is wrapped by Conn.
+// It will triggers PreOpen, Open, PostOpen hooks.
 func (p *Proxy) Open(name string) (driver.Conn, error) {
 	var err error
 	var ctx interface{}
