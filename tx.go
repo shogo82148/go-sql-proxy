@@ -2,11 +2,14 @@ package proxy
 
 import "database/sql/driver"
 
+// Tx adds hook points into "database/sql/driver".Tx.
 type Tx struct {
 	Tx    driver.Tx
 	Proxy *Proxy
 }
 
+// Commit commits the transaction.
+// It will trigger PreCommit, Commit, PostCommit hooks.
 func (tx *Tx) Commit() error {
 	var err error
 	var ctx interface{}
@@ -32,6 +35,8 @@ func (tx *Tx) Commit() error {
 	return nil
 }
 
+// Rollback rollbacks the transaction.
+// It will trigger PreRollback, Rollback, PostRollback hooks.
 func (tx *Tx) Rollback() error {
 	var err error
 	var ctx interface{}

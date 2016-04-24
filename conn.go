@@ -4,11 +4,13 @@ import (
 	"database/sql/driver"
 )
 
+// Conn adds hook points into "database/sql/driver".Conn.
 type Conn struct {
 	Conn  driver.Conn
 	Proxy *Proxy
 }
 
+// Prepare returns a prepared statement which is wrapped by Stmt.
 func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
 	stmt, err := conn.Conn.Prepare(query)
 	if err != nil {
@@ -21,10 +23,13 @@ func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
 	}, nil
 }
 
+// Close calls the original Close method.
 func (conn *Conn) Close() error {
 	return conn.Conn.Close()
 }
 
+// Begin starts and returns a new transaction which is wrapped by Tx.
+// It will trigger PreBegin, Begin, PostBegin hooks.
 func (conn *Conn) Begin() (driver.Tx, error) {
 	var err error
 	var ctx interface{}
@@ -58,6 +63,10 @@ func (conn *Conn) Begin() (driver.Tx, error) {
 	}, nil
 }
 
+// Exec calls the original Exec method of the connection.
+// It will trigger PreExec, Exec, PostExec hooks.
+//
+// If the original connection does not satisfy "database/sql/driver".Execer, it return ErrSkip error.
 func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	execer, ok := conn.Conn.(driver.Execer)
 	if !ok {
@@ -96,6 +105,10 @@ func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error)
 	return result, nil
 }
 
+// Query executes a query that may return rows.
+// It wil trigger PreQuery, Query, PostQuery hooks.
+//
+// If the orginal connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.
 func (conn *Conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	queryer, ok := conn.Conn.(driver.Queryer)
 	if !ok {
