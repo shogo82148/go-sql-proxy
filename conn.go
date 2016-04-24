@@ -108,7 +108,7 @@ func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error)
 // Query executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
 //
-// If the orginal connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.
+// If the original connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.
 func (conn *Conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	queryer, ok := conn.Conn.(driver.Queryer)
 	if !ok {
