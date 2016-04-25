@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/shogo82148/go-sql-proxy.svg?branch=master)](https://travis-ci.org/shogo82148/go-sql-proxy)
 [![Go Report Card](https://goreportcard.com/badge/github.com/shogo82148/go-sql-proxy)](https://goreportcard.com/report/github.com/shogo82148/go-sql-proxy)
+[![Godoc](https://godoc.org/github.com/shogo82148/go-sql-proxy?status.svg)](https://godoc.org/github.com/shogo82148/go-sql-proxy)
 
 A proxy package is a proxy driver for dabase/sql.
 You can hook SQL execution.
