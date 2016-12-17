@@ -46,9 +46,13 @@ func findCaller(f Filter) int {
 		parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
 		pl := len(parts)
 		packageName := ""
-		if parts[pl-2][0] == '(' {
-			packageName = strings.Join(parts[0:pl-2], ".")
-		} else {
+		for j := pl - 1; j > 0; j-- { // find a type name
+			if parts[j][0] == '(' {
+				packageName = strings.Join(parts[0:j], ".")
+				break
+			}
+		}
+		if packageName == "" {
 			packageName = strings.Join(parts[0:pl-1], ".")
 		}
 

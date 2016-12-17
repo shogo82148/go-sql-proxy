@@ -1,10 +1,9 @@
 language: go
 
-# go 1.1 have no option to get packages for test
-install: go get github.com/mattn/go-sqlite3 github.com/shogo82148/txmanager
-
 go:
   - '1.3'
   - '1.4'
   - '1.5'
+  - '1.6'
+  - '1.7'
   - 'tip'
