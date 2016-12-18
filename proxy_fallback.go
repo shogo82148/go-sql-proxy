@@ -1,4 +1,4 @@
-// +build go1.8
+// +build !go1.8
 // a proxy package is a proxy driver for dabase/sql.
 
 package proxy
