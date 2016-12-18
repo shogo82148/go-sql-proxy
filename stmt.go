@@ -2,7 +2,10 @@
 
 package proxy
 
-import "database/sql/driver"
+import (
+	"context"
+	"database/sql/driver"
+)
 
 // Stmt adds hook points into "database/sql/driver".Stmt.
 type Stmt struct {
@@ -29,29 +32,28 @@ func (stmt *Stmt) NumInput() int {
 // Exec executes a query that doesn't return rows.
 // It will trigger PreExec, Exec, PostExec hooks.
 func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) {
+	return stmt.ExecContext(context.Background(), args)
+}
+
+// ExecContext executes a query that doesn't return rows.
+// It will trigger PreExec, Exec, PostExec hooks.
+func (stmt *Stmt) ExecContext(c context.Context, args []driver.Value) (driver.Result, error) {
 	var ctx interface{}
 	var err error
 	var result driver.Result
 
-	if h := stmt.Proxy.Hooks.PostExec; h != nil {
-		defer func() { h(ctx, stmt, args, result) }()
+	defer func() { stmt.Proxy.Hooks.postExec(c, ctx, stmt, args, result) }()
+	if ctx, err = stmt.Proxy.Hooks.preExec(c, stmt, args); err != nil {
+		return nil, err
 	}
 
-	if h := stmt.Proxy.Hooks.PreExec; h != nil {
-		if ctx, err = h(stmt, args); err != nil {
-			return nil, err
-		}
-	}
-
-	result, err = stmt.Stmt.Exec(args)
+	result, err = stmt.Stmt.Exec(args) // TODO: call ExecContext if conn.Conn satisfies StmtExecContext
 	if err != nil {
 		return nil, err
 	}
 
-	if hook := stmt.Proxy.Hooks.Exec; hook != nil {
-		if err := hook(ctx, stmt, args, result); err != nil {
-			return nil, err
-		}
+	if err := stmt.Proxy.Hooks.exec(c, ctx, stmt, args, result); err != nil {
+		return nil, err
 	}
 
 	return result, nil
@@ -60,29 +62,28 @@ func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) {
 // Query executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
 func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error) {
+	return stmt.QueryContext(context.Background(), args)
+}
+
+// Query executes a query that may return rows.
+// It wil trigger PreQuery, Query, PostQuery hooks.
+func (stmt *Stmt) QueryContext(c context.Context, args []driver.Value) (driver.Rows, error) {
 	var ctx interface{}
 	var err error
 	var rows driver.Rows
 
-	if h := stmt.Proxy.Hooks.PostQuery; h != nil {
-		defer func() { h(ctx, stmt, args, rows) }()
+	defer func() { stmt.Proxy.Hooks.postQuery(c, ctx, stmt, args, rows) }()
+	if ctx, err = stmt.Proxy.Hooks.preQuery(c, stmt, args); err != nil {
+		return nil, err
 	}
 
-	if h := stmt.Proxy.Hooks.PreQuery; h != nil {
-		if ctx, err = h(stmt, args); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err = stmt.Stmt.Query(args)
+	rows, err = stmt.Stmt.Query(args) // TODO: call QueryContext if conn.Conn satisfies StmtQueryContext
 	if err != nil {
 		return nil, err
 	}
 
-	if hook := stmt.Proxy.Hooks.Query; hook != nil {
-		if err := hook(ctx, stmt, args, rows); err != nil {
-			return nil, err
-		}
+	if err := stmt.Proxy.Hooks.query(c, ctx, stmt, args, rows); err != nil {
+		return nil, err
 	}
 
 	return rows, nil

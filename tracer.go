@@ -74,8 +74,9 @@ func NewTraceProxy(d driver.Driver, o Outputter) *Proxy {
 func NewTraceProxyWithFilter(d driver.Driver, o Outputter, f Filter) *Proxy {
 	if f == nil {
 		f = PackageFilter{
-			"database/sql":                    struct{}{},
-			"github.com/shogo82148/txmanager": struct{}{},
+			"database/sql":                       struct{}{},
+			"github.com/shogo82148/txmanager":    struct{}{},
+			"github.com/shogo82148/go-sql-proxy": struct{}{},
 		}
 	}
 

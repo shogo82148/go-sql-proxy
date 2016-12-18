@@ -1,4 +1,4 @@
-package proxy
+package proxy_test
 
 import (
 	"bufio"
@@ -9,13 +9,14 @@ import (
 	"testing"
 
 	"github.com/mattn/go-sqlite3"
+	"github.com/shogo82148/go-sql-proxy"
 	"github.com/shogo82148/txmanager"
 )
 
 func TestTraceProxy(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := log.New(buf, "", log.Lshortfile)
-	sql.Register("sqlite3-trace-proxy", NewTraceProxy(&sqlite3.SQLiteDriver{}, logger))
+	sql.Register("sqlite3-trace-proxy", proxy.NewTraceProxy(&sqlite3.SQLiteDriver{}, logger))
 
 	db, err := sql.Open("sqlite3-trace-proxy", ":memory:")
 	if err != nil {
@@ -50,12 +51,12 @@ func TestTraceProxy(t *testing.T) {
 	timeComponent := `\(\d+(?:\.\d+)?[^\)]+\)`
 	expected := []*regexp.Regexp{
 		// Fake time compinent with (\d+\.\d+[^\)]+)
-		regexp.MustCompile(`tracer_test.go:27: Open ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:27: Exec: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:36: Begin ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:34: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:36: Commit ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:41: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:28: Open ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:28: Exec: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:37: Begin ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:35: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:37: Commit ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:42: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
 	}
 
 	scanner := bufio.NewScanner(buf)
