@@ -20,22 +20,22 @@ type Proxy struct {
 type hooks interface {
 	preOpen(c context.Context, name string) (interface{}, error)
 	open(c context.Context, ctx interface{}, conn driver.Conn) error
-	postOpen(c context.Context, ctx interface{}, conn driver.Conn) error
+	postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error
 	preExec(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error)
 	exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error
-	postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error
+	postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error
 	preQuery(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error)
 	query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
-	postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
+	postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error
 	preBegin(c context.Context, conn *Conn) (interface{}, error)
 	begin(c context.Context, ctx interface{}, conn *Conn) error
-	postBegin(c context.Context, ctx interface{}, conn *Conn) error
+	postBegin(c context.Context, ctx interface{}, conn *Conn, err error) error
 	preCommit(c context.Context, tx *Tx) (interface{}, error)
 	commit(c context.Context, ctx interface{}, tx *Tx) error
-	postCommit(c context.Context, ctx interface{}, tx *Tx) error
+	postCommit(c context.Context, ctx interface{}, tx *Tx, err error) error
 	preRollback(c context.Context, tx *Tx) (interface{}, error)
 	rollback(c context.Context, ctx interface{}, tx *Tx) error
-	postRollback(c context.Context, ctx interface{}, tx *Tx) error
+	postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error
 }
 
 // HooksContext is callback functions with context.Context for the proxy.
@@ -70,7 +70,7 @@ type HooksContext struct {
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreOpen` method, and may be nil.
-	PostOpen func(c context.Context, ctx interface{}, conn driver.Conn) error
+	PostOpen func(c context.Context, ctx interface{}, conn driver.Conn, err error) error
 
 	// PreExec is a callback that gets called prior to calling
 	// `Stmt.Exec`, and is ALWAYS called. If this callback returns an
@@ -102,7 +102,7 @@ type HooksContext struct {
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreExec` method, and may be nil.
-	PostExec func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error
+	PostExec func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error
 
 	// PreQuery is a callback that gets called prior to calling
 	// `Stmt.Query`, and is ALWAYS called. If this callback returns an
@@ -134,7 +134,7 @@ type HooksContext struct {
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreQuery` method, and may be nil.
-	PostQuery func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
+	PostQuery func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error
 
 	// PreBegin is a callback that gets called prior to calling
 	// `Stmt.Begin`, and is ALWAYS called. If this callback returns an
@@ -166,7 +166,7 @@ type HooksContext struct {
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreBegin` method, and may be nil.
-	PostBegin func(c context.Context, ctx interface{}, conn *Conn) error
+	PostBegin func(c context.Context, ctx interface{}, conn *Conn, err error) error
 
 	// PreCommit is a callback that gets called prior to calling
 	// `Tx.Commit`, and is ALWAYS called. If this callback returns an
@@ -198,7 +198,7 @@ type HooksContext struct {
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreCommit` method, and may be nil.
-	PostCommit func(c context.Context, ctx interface{}, tx *Tx) error
+	PostCommit func(c context.Context, ctx interface{}, tx *Tx, err error) error
 
 	// PreRollback is a callback that gets called prior to calling
 	// `Tx.Rollback`, and is ALWAYS called. If this callback returns an
@@ -229,7 +229,7 @@ type HooksContext struct {
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreRollback` method, and may be nil.
-	PostRollback func(c context.Context, ctx interface{}, tx *Tx) error
+	PostRollback func(c context.Context, ctx interface{}, tx *Tx, err error) error
 }
 
 func (h *HooksContext) preOpen(c context.Context, name string) (interface{}, error) {
@@ -246,11 +246,11 @@ func (h *HooksContext) open(c context.Context, ctx interface{}, conn driver.Conn
 	return h.Open(c, ctx, conn)
 }
 
-func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn driver.Conn) error {
+func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
 	if h == nil || h.PostOpen == nil {
 		return nil
 	}
-	return h.PostOpen(c, ctx, conn)
+	return h.PostOpen(c, ctx, conn, err)
 }
 
 func (h *HooksContext) preExec(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
@@ -267,11 +267,11 @@ func (h *HooksContext) exec(c context.Context, ctx interface{}, stmt *Stmt, args
 	return h.Exec(c, ctx, stmt, args, result)
 }
 
-func (h *HooksContext) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+func (h *HooksContext) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
 	if h == nil || h.PostExec == nil {
 		return nil
 	}
-	return h.PostExec(c, ctx, stmt, args, result)
+	return h.PostExec(c, ctx, stmt, args, result, err)
 }
 
 func (h *HooksContext) preQuery(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
@@ -288,11 +288,11 @@ func (h *HooksContext) query(c context.Context, ctx interface{}, stmt *Stmt, arg
 	return h.Query(c, ctx, stmt, args, rows)
 }
 
-func (h *HooksContext) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+func (h *HooksContext) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
 	if h == nil || h.PostQuery == nil {
 		return nil
 	}
-	return h.PostQuery(c, ctx, stmt, args, rows)
+	return h.PostQuery(c, ctx, stmt, args, rows, err)
 }
 
 func (h *HooksContext) preBegin(c context.Context, conn *Conn) (interface{}, error) {
@@ -309,11 +309,11 @@ func (h *HooksContext) begin(c context.Context, ctx interface{}, conn *Conn) err
 	return h.Begin(c, ctx, conn)
 }
 
-func (h *HooksContext) postBegin(c context.Context, ctx interface{}, conn *Conn) error {
+func (h *HooksContext) postBegin(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostBegin == nil {
 		return nil
 	}
-	return h.PostBegin(c, ctx, conn)
+	return h.PostBegin(c, ctx, conn, err)
 }
 
 func (h *HooksContext) preCommit(c context.Context, tx *Tx) (interface{}, error) {
@@ -330,11 +330,11 @@ func (h *HooksContext) commit(c context.Context, ctx interface{}, tx *Tx) error 
 	return h.Commit(c, ctx, tx)
 }
 
-func (h *HooksContext) postCommit(c context.Context, ctx interface{}, tx *Tx) error {
+func (h *HooksContext) postCommit(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	if h == nil || h.PostCommit == nil {
 		return nil
 	}
-	return h.PostCommit(c, ctx, tx)
+	return h.PostCommit(c, ctx, tx, err)
 }
 
 func (h *HooksContext) preRollback(c context.Context, tx *Tx) (interface{}, error) {
@@ -351,11 +351,11 @@ func (h *HooksContext) rollback(c context.Context, ctx interface{}, tx *Tx) erro
 	return h.Rollback(c, ctx, tx)
 }
 
-func (h *HooksContext) postRollback(c context.Context, ctx interface{}, tx *Tx) error {
+func (h *HooksContext) postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	if h == nil || h.PostRollback == nil {
 		return nil
 	}
-	return h.PostRollback(c, ctx, tx)
+	return h.PostRollback(c, ctx, tx, err)
 }
 
 // Hooks is callback functions for the proxy.
@@ -566,7 +566,7 @@ func (h *Hooks) open(c context.Context, ctx interface{}, conn driver.Conn) error
 	return h.Open(ctx, conn)
 }
 
-func (h *Hooks) postOpen(c context.Context, ctx interface{}, conn driver.Conn) error {
+func (h *Hooks) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
 	if h == nil || h.PostOpen == nil {
 		return nil
 	}
@@ -587,7 +587,7 @@ func (h *Hooks) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driv
 	return h.Exec(ctx, stmt, args, result)
 }
 
-func (h *Hooks) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+func (h *Hooks) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
 	if h == nil || h.PostExec == nil {
 		return nil
 	}
@@ -608,7 +608,7 @@ func (h *Hooks) query(c context.Context, ctx interface{}, stmt *Stmt, args []dri
 	return h.Query(ctx, stmt, args, rows)
 }
 
-func (h *Hooks) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+func (h *Hooks) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
 	if h == nil || h.PostQuery == nil {
 		return nil
 	}
@@ -629,7 +629,7 @@ func (h *Hooks) begin(c context.Context, ctx interface{}, conn *Conn) error {
 	return h.Begin(ctx, conn)
 }
 
-func (h *Hooks) postBegin(c context.Context, ctx interface{}, conn *Conn) error {
+func (h *Hooks) postBegin(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostBegin == nil {
 		return nil
 	}
@@ -650,7 +650,7 @@ func (h *Hooks) commit(c context.Context, ctx interface{}, tx *Tx) error {
 	return h.Commit(ctx, tx)
 }
 
-func (h *Hooks) postCommit(c context.Context, ctx interface{}, tx *Tx) error {
+func (h *Hooks) postCommit(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	if h == nil || h.PostCommit == nil {
 		return nil
 	}
@@ -671,7 +671,7 @@ func (h *Hooks) rollback(c context.Context, ctx interface{}, tx *Tx) error {
 	return h.Rollback(ctx, tx)
 }
 
-func (h *Hooks) postRollback(c context.Context, ctx interface{}, tx *Tx) error {
+func (h *Hooks) postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	if h == nil || h.PostRollback == nil {
 		return nil
 	}
@@ -706,7 +706,7 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 	// or otherwise changes to the `ctx` and `conn` parameters
 	// within this Open() method does not get applied at the
 	// time defer is fired
-	defer func() { p.Hooks.postOpen(c, ctx, conn) }()
+	defer func() { p.Hooks.postOpen(c, ctx, conn, err) }()
 
 	if ctx, err = p.Hooks.preOpen(c, name); err != nil {
 		return nil, err

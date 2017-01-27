@@ -49,7 +49,7 @@ func (conn *Conn) BeginContext(c context.Context) (driver.Tx, error) {
 	var ctx interface{}
 
 	var tx driver.Tx
-	defer func() { conn.Proxy.Hooks.postBegin(c, ctx, conn) }()
+	defer func() { conn.Proxy.Hooks.postBegin(c, ctx, conn, err) }()
 
 	if ctx, err = conn.Proxy.Hooks.preBegin(c, conn); err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Val
 	var err error
 	var result driver.Result
 
-	defer func() { stmt.Proxy.Hooks.postExec(c, ctx, stmt, args, result) }()
+	defer func() { stmt.Proxy.Hooks.postExec(c, ctx, stmt, args, result, err) }()
 	if ctx, err = stmt.Proxy.Hooks.preExec(c, stmt, args); err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Val
 		return nil, err
 	}
 
-	if err := stmt.Proxy.Hooks.exec(c, ctx, stmt, args, result); err != nil {
+	if err = stmt.Proxy.Hooks.exec(c, ctx, stmt, args, result); err != nil {
 		return nil, err
 	}
 
@@ -143,7 +143,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Va
 	var err error
 	var rows driver.Rows
 
-	defer func() { stmt.Proxy.Hooks.postQuery(c, ctx, stmt, args, rows) }()
+	defer func() { stmt.Proxy.Hooks.postQuery(c, ctx, stmt, args, rows, err) }()
 	if ctx, err = stmt.Proxy.Hooks.preQuery(c, stmt, args); err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Va
 		return nil, err
 	}
 
-	if err := stmt.Proxy.Hooks.query(c, ctx, stmt, args, rows); err != nil {
+	if err = stmt.Proxy.Hooks.query(c, ctx, stmt, args, rows); err != nil {
 		return nil, err
 	}
 

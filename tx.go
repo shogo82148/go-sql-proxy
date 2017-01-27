@@ -20,7 +20,7 @@ func (tx *Tx) Commit() error {
 	var err error
 	var ctx interface{}
 
-	defer func() { tx.Proxy.Hooks.postCommit(tx.ctx, ctx, tx) }()
+	defer func() { tx.Proxy.Hooks.postCommit(tx.ctx, ctx, tx, err) }()
 	if ctx, err = tx.Proxy.Hooks.preCommit(tx.ctx, tx); err != nil {
 		return err
 	}
@@ -38,12 +38,12 @@ func (tx *Tx) Rollback() error {
 	var err error
 	var ctx interface{}
 
-	defer func() { tx.Proxy.Hooks.postRollback(tx.ctx, ctx, tx) }()
+	defer func() { tx.Proxy.Hooks.postRollback(tx.ctx, ctx, tx, err) }()
 	if ctx, err = tx.Proxy.Hooks.preRollback(tx.ctx, tx); err != nil {
 		return err
 	}
 
-	if err := tx.Tx.Rollback(); err != nil {
+	if err = tx.Tx.Rollback(); err != nil {
 		return err
 	}
 

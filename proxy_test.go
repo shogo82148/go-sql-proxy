@@ -16,7 +16,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.open(c, ctx, nil); err != nil {
 		t.Error("open returns error: ", err)
 	}
-	if err := h.postOpen(c, ctx, nil); err != nil {
+	if err := h.postOpen(c, ctx, nil, nil); err != nil {
 		t.Error("postOpen returns error: ", err)
 	}
 	if ctx2, err := h.preExec(c, nil, nil); ctx2 != ctx || err != nil {
@@ -25,7 +25,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.exec(c, ctx, nil, nil, nil); err != nil {
 		t.Error("exec returns error: ", err)
 	}
-	if err := h.postExec(c, ctx, nil, nil, nil); err != nil {
+	if err := h.postExec(c, ctx, nil, nil, nil, nil); err != nil {
 		t.Error("postExec returns error: ", err)
 	}
 	if ctx2, err := h.preQuery(c, nil, nil); ctx2 != ctx || err != nil {
@@ -34,7 +34,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.query(c, ctx, nil, nil, nil); err != nil {
 		t.Error("query returns error: ", err)
 	}
-	if err := h.postQuery(c, ctx, nil, nil, nil); err != nil {
+	if err := h.postQuery(c, ctx, nil, nil, nil, nil); err != nil {
 		t.Error("postQuery returns error: ", err)
 	}
 	if ctx2, err := h.preBegin(c, nil); ctx2 != ctx || err != nil {
@@ -43,7 +43,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.begin(c, ctx, nil); err != nil {
 		t.Error("begin returns error: ", err)
 	}
-	if err := h.postBegin(c, ctx, nil); err != nil {
+	if err := h.postBegin(c, ctx, nil, nil); err != nil {
 		t.Error("postBegin returns error: ", err)
 	}
 	if ctx2, err := h.preCommit(c, nil); ctx2 != ctx || err != nil {
@@ -52,7 +52,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.commit(c, ctx, nil); err != nil {
 		t.Error("commit returns error: ", err)
 	}
-	if err := h.postCommit(c, ctx, nil); err != nil {
+	if err := h.postCommit(c, ctx, nil, nil); err != nil {
 		t.Error("postCommit returns error: ", err)
 	}
 	if ctx2, err := h.preRollback(c, nil); ctx2 != ctx || err != nil {
@@ -61,7 +61,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.rollback(c, ctx, nil); err != nil {
 		t.Error("rollback returns error: ", err)
 	}
-	if err := h.postRollback(c, ctx, nil); err != nil {
+	if err := h.postRollback(c, ctx, nil, nil); err != nil {
 		t.Error("postRollback returns error: ", err)
 	}
 }
@@ -92,9 +92,9 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("Open", ctx)
 			return nil
 		},
-		PostOpen: func(c context.Context, ctx interface{}, conn driver.Conn) error {
+		PostOpen: func(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
 			checkCtx("PostOpen", ctx)
-			return nil
+			return err
 		},
 		PreExec: func(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
 			return ctx0, nil
@@ -103,9 +103,9 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("Exec", ctx)
 			return nil
 		},
-		PostExec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+		PostExec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
 			checkCtx("PostExec", ctx)
-			return nil
+			return err
 		},
 		PreQuery: func(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
 			return ctx0, nil
@@ -114,9 +114,9 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("Query", ctx)
 			return nil
 		},
-		PostQuery: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+		PostQuery: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
 			checkCtx("PostQuery", ctx)
-			return nil
+			return err
 		},
 		PreBegin: func(c context.Context, conn *Conn) (interface{}, error) {
 			return ctx0, nil
@@ -125,9 +125,9 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("Begin", ctx)
 			return nil
 		},
-		PostBegin: func(c context.Context, ctx interface{}, conn *Conn) error {
+		PostBegin: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
 			checkCtx("PostBegin", ctx)
-			return nil
+			return err
 		},
 		PreCommit: func(c context.Context, tx *Tx) (interface{}, error) {
 			return ctx0, nil
@@ -136,9 +136,9 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("Commit", ctx)
 			return nil
 		},
-		PostCommit: func(c context.Context, ctx interface{}, tx *Tx) error {
+		PostCommit: func(c context.Context, ctx interface{}, tx *Tx, err error) error {
 			checkCtx("PostCommit", ctx)
-			return nil
+			return err
 		},
 		PreRollback: func(c context.Context, tx *Tx) (interface{}, error) {
 			return ctx0, nil
@@ -147,20 +147,20 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("Rollback", ctx)
 			return nil
 		},
-		PostRollback: func(c context.Context, ctx interface{}, tx *Tx) error {
+		PostRollback: func(c context.Context, ctx interface{}, tx *Tx, err error) error {
 			checkCtx("PostRollback", ctx)
-			return nil
+			return err
 		},
 	}, ctx0)
 }
 
 func TestNilHooks(t *testing.T) {
-	// nil Hooks will not panic and have no effec
+	// nil Hooks will not panic and have no effect
 	testHooksInterface(t, (*Hooks)(nil), nil)
 }
 
 func TestZeroHooks(t *testing.T) {
-	// zero Hooks will not panic and have no effec
+	// zero Hooks will not panic and have no effect
 	testHooksInterface(t, &Hooks{}, nil)
 }
 
