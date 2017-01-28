@@ -38,42 +38,42 @@ func (h *loggingHook) postOpen(c context.Context, ctx interface{}, conn driver.C
 	return nil
 }
 
-func (h *loggingHook) preExec(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+func (h *loggingHook) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PreExec]")
 	return nil, nil
 }
 
-func (h *loggingHook) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+func (h *loggingHook) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[Exec]")
 	return nil
 }
 
-func (h *loggingHook) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
+func (h *loggingHook) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostExec]")
 	return nil
 }
 
-func (h *loggingHook) preQuery(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+func (h *loggingHook) preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PreQuery]")
 	return nil, nil
 }
 
-func (h *loggingHook) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+func (h *loggingHook) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[Query]")
 	return nil
 }
 
-func (h *loggingHook) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
+func (h *loggingHook) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostQuery]")

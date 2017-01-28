@@ -99,25 +99,25 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("PostOpen", ctx)
 			return err
 		},
-		PreExec: func(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+		PreExec: func(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 			return ctx0, nil
 		},
-		Exec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+		Exec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
 			checkCtx("Exec", ctx)
 			return nil
 		},
-		PostExec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
+		PostExec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
 			checkCtx("PostExec", ctx)
 			return err
 		},
-		PreQuery: func(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+		PreQuery: func(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 			return ctx0, nil
 		},
-		Query: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+		Query: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
 			checkCtx("Query", ctx)
 			return nil
 		},
-		PostQuery: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
+		PostQuery: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
 			checkCtx("PostQuery", ctx)
 			return err
 		},
@@ -264,6 +264,24 @@ func TestFakeDB(t *testing.T) {
 		{
 			name: "queryAll",
 			hooksLog: "[PreOpen] " + testName + "-proxy-queryAll\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			name: "commit",
+			hooksLog: "[PreOpen] " + testName + "-proxy-commit\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			name: "rollback",
+			hooksLog: "[PreOpen] " + testName + "-proxy-rollback\n" +
 				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)

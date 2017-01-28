@@ -21,12 +21,12 @@ type hooks interface {
 	preOpen(c context.Context, name string) (interface{}, error)
 	open(c context.Context, ctx interface{}, conn driver.Conn) error
 	postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error
-	preExec(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error)
-	exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error
-	postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error
-	preQuery(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error)
-	query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
-	postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error
+	preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error)
+	exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error
+	postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error
+	preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error)
+	query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error
+	postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error
 	preBegin(c context.Context, conn *Conn) (interface{}, error)
 	begin(c context.Context, ctx interface{}, conn *Conn) error
 	postBegin(c context.Context, ctx interface{}, conn *Conn, err error) error
@@ -85,7 +85,7 @@ type HooksContext struct {
 	// executing this hook. If this callback returns an error,
 	// the underlying driver's `Driver.Exec` method and `Hooks.Exec`
 	// methods are not called.
-	PreExec func(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error)
+	PreExec func(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error)
 
 	// Exec is called after the underlying driver's `Driver.Exec` method
 	// returns without any errors.
@@ -95,14 +95,14 @@ type HooksContext struct {
 	//
 	// If this callback returns an error, then the error from this
 	// callback is returned by the `Stmt.Exec` method.
-	Exec func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error
+	Exec func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error
 
 	// PostExec is a callback that gets called at the end of
 	// the call to `Stmt.Exec`. It is ALWAYS called.
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreExec` method, and may be nil.
-	PostExec func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error
+	PostExec func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error
 
 	// PreQuery is a callback that gets called prior to calling
 	// `Stmt.Query`, and is ALWAYS called. If this callback returns an
@@ -117,7 +117,7 @@ type HooksContext struct {
 	// executing this hook. If this callback returns an error,
 	// the underlying driver's `Stmt.Query` method and `Hooks.Query`
 	// methods are not called.
-	PreQuery func(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error)
+	PreQuery func(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error)
 
 	// Query is called after the underlying driver's `Stmt.Query` method
 	// returns without any errors.
@@ -127,14 +127,14 @@ type HooksContext struct {
 	//
 	// If this callback returns an error, then the error from this
 	// callback is returned by the `Stmt.Query` method.
-	Query func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error
+	Query func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error
 
 	// PostQuery is a callback that gets called at the end of
 	// the call to `Stmt.Query`. It is ALWAYS called.
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreQuery` method, and may be nil.
-	PostQuery func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error
+	PostQuery func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error
 
 	// PreBegin is a callback that gets called prior to calling
 	// `Stmt.Begin`, and is ALWAYS called. If this callback returns an
@@ -253,42 +253,42 @@ func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn driver.
 	return h.PostOpen(c, ctx, conn, err)
 }
 
-func (h *HooksContext) preExec(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+func (h *HooksContext) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	if h == nil || h.PreExec == nil {
 		return nil, nil
 	}
 	return h.PreExec(c, stmt, args)
 }
 
-func (h *HooksContext) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+func (h *HooksContext) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
 	if h == nil || h.Exec == nil {
 		return nil
 	}
 	return h.Exec(c, ctx, stmt, args, result)
 }
 
-func (h *HooksContext) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
+func (h *HooksContext) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
 	if h == nil || h.PostExec == nil {
 		return nil
 	}
 	return h.PostExec(c, ctx, stmt, args, result, err)
 }
 
-func (h *HooksContext) preQuery(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+func (h *HooksContext) preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	if h == nil || h.PreQuery == nil {
 		return nil, nil
 	}
 	return h.PreQuery(c, stmt, args)
 }
 
-func (h *HooksContext) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+func (h *HooksContext) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
 	if h == nil || h.Query == nil {
 		return nil
 	}
 	return h.Query(c, ctx, stmt, args, rows)
 }
 
-func (h *HooksContext) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
+func (h *HooksContext) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
 	if h == nil || h.PostQuery == nil {
 		return nil
 	}
@@ -359,6 +359,7 @@ func (h *HooksContext) postRollback(c context.Context, ctx interface{}, tx *Tx, 
 }
 
 // Hooks is callback functions for the proxy.
+// Deprecated: You should use HooksContext instead.
 type Hooks struct {
 	// PreOpen is a callback that gets called before any
 	// attempt to open the sql connection is made, and is ALWAYS
@@ -552,6 +553,25 @@ type Hooks struct {
 	PostRollback func(ctx interface{}, tx *Tx) error
 }
 
+func namedValuesToValues(args []driver.NamedValue) []driver.Value {
+	ret := make([]driver.Value, len(args))
+	for _, arg := range args {
+		ret[arg.Ordinal-1] = arg.Value
+	}
+	return ret
+}
+
+func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
+	ret := make([]driver.NamedValue, len(args))
+	for i, arg := range args {
+		ret[i] = driver.NamedValue{
+			Ordinal: i + 1,
+			Value:   arg,
+		}
+	}
+	return ret
+}
+
 func (h *Hooks) preOpen(c context.Context, name string) (interface{}, error) {
 	if h == nil || h.PreOpen == nil {
 		return nil, nil
@@ -573,46 +593,46 @@ func (h *Hooks) postOpen(c context.Context, ctx interface{}, conn driver.Conn, e
 	return h.PostOpen(ctx, conn)
 }
 
-func (h *Hooks) preExec(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+func (h *Hooks) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	if h == nil || h.PreExec == nil {
 		return nil, nil
 	}
-	return h.PreExec(stmt, args)
+	return h.PreExec(stmt, namedValuesToValues(args))
 }
 
-func (h *Hooks) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+func (h *Hooks) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
 	if h == nil || h.Exec == nil {
 		return nil
 	}
-	return h.Exec(ctx, stmt, args, result)
+	return h.Exec(ctx, stmt, namedValuesToValues(args), result)
 }
 
-func (h *Hooks) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result, err error) error {
+func (h *Hooks) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
 	if h == nil || h.PostExec == nil {
 		return nil
 	}
-	return h.PostExec(ctx, stmt, args, result)
+	return h.PostExec(ctx, stmt, namedValuesToValues(args), result)
 }
 
-func (h *Hooks) preQuery(c context.Context, stmt *Stmt, args []driver.Value) (interface{}, error) {
+func (h *Hooks) preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	if h == nil || h.PreQuery == nil {
 		return nil, nil
 	}
-	return h.PreQuery(stmt, args)
+	return h.PreQuery(stmt, namedValuesToValues(args))
 }
 
-func (h *Hooks) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+func (h *Hooks) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
 	if h == nil || h.Query == nil {
 		return nil
 	}
-	return h.Query(ctx, stmt, args, rows)
+	return h.Query(ctx, stmt, namedValuesToValues(args), rows)
 }
 
-func (h *Hooks) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows, err error) error {
+func (h *Hooks) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
 	if h == nil || h.PostQuery == nil {
 		return nil
 	}
-	return h.PostQuery(ctx, stmt, args, rows)
+	return h.PostQuery(ctx, stmt, namedValuesToValues(args), rows)
 }
 
 func (h *Hooks) preBegin(c context.Context, conn *Conn) (interface{}, error) {

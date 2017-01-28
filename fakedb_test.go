@@ -89,16 +89,19 @@ func (c *fakeConn) Close() error {
 }
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
+	c.db.Log("[Conn.Begin]")
 	return &fakeTx{
 		db: c.db,
 	}, nil
 }
 
 func (tx *fakeTx) Commit() error {
+	tx.db.Log("[Tx.Commit]")
 	return nil
 }
 
 func (tx *fakeTx) Rollback() error {
+	tx.db.Log("[Tx.Rollback]")
 	return nil
 }
 

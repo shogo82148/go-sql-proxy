@@ -14,8 +14,9 @@ type Conn struct {
 }
 
 // Prepare returns a prepared statement which is wrapped by Stmt.
+// NOT SUPPORTED: use PrepareContext instead
 func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
-	return conn.PrepareContext(context.Background(), query)
+	panic("not supported")
 }
 
 // PrepareContext returns a prepared statement which is wrapped by Stmt.
@@ -38,13 +39,14 @@ func (conn *Conn) Close() error {
 
 // Begin starts and returns a new transaction which is wrapped by Tx.
 // It will trigger PreBegin, Begin, PostBegin hooks.
+// NOT SUPPORTED: use BeginContext instead
 func (conn *Conn) Begin() (driver.Tx, error) {
-	return conn.BeginContext(context.Background())
+	panic("not supported")
 }
 
 // BeginContext starts and returns a new transaction which is wrapped by Tx.
 // It will trigger PreBegin, Begin, PostBegin hooks.
-func (conn *Conn) BeginContext(c context.Context) (driver.Tx, error) {
+func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	var err error
 	var ctx interface{}
 
@@ -76,15 +78,16 @@ func (conn *Conn) BeginContext(c context.Context) (driver.Tx, error) {
 // It will trigger PreExec, Exec, PostExec hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".Execer, it return ErrSkip error.
+// NOT SUPPORTED: use ExecContext instead
 func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error) {
-	return conn.ExecContext(context.Background(), query, args)
+	panic("not supported")
 }
 
 // ExecContext calls the original Exec method of the connection.
 // It will trigger PreExec, Exec, PostExec hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".Execer, it return ErrSkip error.
-func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Value) (driver.Result, error) {
+func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	execer, ok := conn.Conn.(driver.Execer)
 	if !ok {
 		return nil, driver.ErrSkip
@@ -104,7 +107,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Val
 		return nil, err
 	}
 
-	result, err = execer.Exec(query, args) // TODO: call ExecContext if conn.Conn satisfies ConnExecContext
+	result, err = execer.Exec(query, namedValuesToValues(args)) // TODO: call ExecContext if conn.Conn satisfies ConnExecContext
 	if err != nil {
 		return nil, err
 	}
@@ -120,15 +123,16 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Val
 // It wil trigger PreQuery, Query, PostQuery hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.
+// NOT SUPPORTED: use QueryContext instead
 func (conn *Conn) Query(query string, args []driver.Value) (driver.Rows, error) {
-	return conn.QueryContext(context.Background(), query, args)
+	panic("not supported")
 }
 
 // Query executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.
-func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Value) (driver.Rows, error) {
+func (conn *Conn) QueryContext(c context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	queryer, ok := conn.Conn.(driver.Queryer)
 	if !ok {
 		return nil, driver.ErrSkip
@@ -148,7 +152,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Va
 		return nil, err
 	}
 
-	rows, err = queryer.Query(query, args) // TODO: call QueryContext if conn.Conn satisfies ConnQueryContext
+	rows, err = queryer.Query(query, namedValuesToValues(args)) // TODO: call QueryContext if conn.Conn satisfies ConnQueryContext
 	if err != nil {
 		return nil, err
 	}

@@ -31,13 +31,14 @@ func (stmt *Stmt) NumInput() int {
 
 // Exec executes a query that doesn't return rows.
 // It will trigger PreExec, Exec, PostExec hooks.
+// NOT SUPPORTED: use ExecContext instead
 func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) {
-	return stmt.ExecContext(context.Background(), args)
+	panic("not supported")
 }
 
 // ExecContext executes a query that doesn't return rows.
 // It will trigger PreExec, Exec, PostExec hooks.
-func (stmt *Stmt) ExecContext(c context.Context, args []driver.Value) (driver.Result, error) {
+func (stmt *Stmt) ExecContext(c context.Context, args []driver.NamedValue) (driver.Result, error) {
 	var ctx interface{}
 	var err error
 	var result driver.Result
@@ -47,7 +48,7 @@ func (stmt *Stmt) ExecContext(c context.Context, args []driver.Value) (driver.Re
 		return nil, err
 	}
 
-	result, err = stmt.Stmt.Exec(args) // TODO: call ExecContext if conn.Conn satisfies StmtExecContext
+	result, err = stmt.Stmt.Exec(namedValuesToValues(args)) // TODO: call ExecContext if conn.Conn satisfies StmtExecContext
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +62,14 @@ func (stmt *Stmt) ExecContext(c context.Context, args []driver.Value) (driver.Re
 
 // Query executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
+// NOT SUPPORTED: use QueryContext instead
 func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error) {
-	return stmt.QueryContext(context.Background(), args)
+	panic("not supported")
 }
 
 // Query executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
-func (stmt *Stmt) QueryContext(c context.Context, args []driver.Value) (driver.Rows, error) {
+func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	var ctx interface{}
 	var err error
 	var rows driver.Rows
@@ -77,7 +79,7 @@ func (stmt *Stmt) QueryContext(c context.Context, args []driver.Value) (driver.R
 		return nil, err
 	}
 
-	rows, err = stmt.Stmt.Query(args) // TODO: call QueryContext if conn.Conn satisfies StmtQueryContext
+	rows, err = stmt.Stmt.Query(namedValuesToValues(args)) // TODO: call QueryContext if conn.Conn satisfies StmtQueryContext
 	if err != nil {
 		return nil, err
 	}
