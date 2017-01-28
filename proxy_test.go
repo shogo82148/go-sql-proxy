@@ -3,8 +3,11 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"testing"
 )
 
@@ -240,4 +243,65 @@ func TestHooks(t *testing.T) {
 			return nil
 		},
 	}, ctx0)
+}
+
+func TestFakeDB(t *testing.T) {
+	testName := t.Name()
+	testCases := []struct {
+		name     string
+		hooksLog string
+		f        func(db *sql.DB) error
+	}{
+		{
+			name: "prepare",
+			hooksLog: "[PreOpen] " + testName + "-proxy-prepare\n" +
+				"[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				db.Prepare("HOGE")
+				return nil
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// install a proxy
+			buf := &bytes.Buffer{}
+			driverName := fmt.Sprintf("%s-proxy-%s", testName, tc.name)
+			sql.Register(driverName, &Proxy{
+				Driver: fdriver,
+				Hooks:  newLoggingHook(buf),
+			})
+
+			// Run test queries directory
+			dbName := fmt.Sprintf("%s-%s", testName, tc.name)
+			db, err := sql.Open("fakedb", dbName)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = tc.f(db); err != nil {
+				t.Fatal(err)
+			}
+
+			// Run test queris via a proxy
+			dbProxyName := fmt.Sprintf("%s-proxy-%s", testName, tc.name)
+			dbProxy, err := sql.Open(driverName, dbProxyName)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = tc.f(dbProxy); err != nil {
+				t.Fatal(err)
+			}
+
+			// check the logs
+			want := fdriver.DB(dbName).LogToString()
+			got := fdriver.DB(dbProxyName).LogToString()
+			if want != got {
+				t.Errorf("want %s, got %s", want, got)
+			}
+			if tc.hooksLog != buf.String() {
+				t.Errorf("want %s, got %s", tc.hooksLog, buf.String())
+			}
+		})
+	}
 }
