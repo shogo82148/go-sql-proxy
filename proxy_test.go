@@ -253,12 +253,21 @@ func TestFakeDB(t *testing.T) {
 		f        func(db *sql.DB) error
 	}{
 		{
-			name: "prepare",
-			hooksLog: "[PreOpen] " + testName + "-proxy-prepare\n" +
-				"[Open]\n[PostOpen]\n",
+			name: "execAll",
+			hooksLog: "[PreOpen] " + testName + "-proxy-execAll\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
 			f: func(db *sql.DB) error {
-				db.Prepare("HOGE")
-				return nil
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			name: "queryAll",
+			hooksLog: "[PreOpen] " + testName + "-proxy-queryAll\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
 			},
 		},
 	}
@@ -273,7 +282,7 @@ func TestFakeDB(t *testing.T) {
 				Hooks:  newLoggingHook(buf),
 			})
 
-			// Run test queries directory
+			// Run test queries directly
 			dbName := fmt.Sprintf("%s-%s", testName, tc.name)
 			db, err := sql.Open("fakedb", dbName)
 			if err != nil {
@@ -302,6 +311,8 @@ func TestFakeDB(t *testing.T) {
 			if tc.hooksLog != buf.String() {
 				t.Errorf("want %s, got %s", tc.hooksLog, buf.String())
 			}
+			t.Log("Driver log:", got)
+			t.Log("Hook log:", buf.String())
 		})
 	}
 }

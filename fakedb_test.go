@@ -25,9 +25,11 @@ type fakeConn struct {
 }
 
 type fakeTx struct {
+	db *fakeDB
 }
 
 type fakeStmt struct {
+	db *fakeDB
 }
 
 var fdriver = &fakeDriver{}
@@ -76,8 +78,10 @@ func (db *fakeDB) LogToString() string {
 }
 
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
-	c.db.Log("[Prepare]", query)
-	return &fakeStmt{}, nil
+	c.db.Log("[Conn.Prepare]", query)
+	return &fakeStmt{
+		db: c.db,
+	}, nil
 }
 
 func (c *fakeConn) Close() error {
@@ -85,7 +89,9 @@ func (c *fakeConn) Close() error {
 }
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
-	return &fakeTx{}, nil
+	return &fakeTx{
+		db: c.db,
+	}, nil
 }
 
 func (tx *fakeTx) Commit() error {
@@ -97,17 +103,28 @@ func (tx *fakeTx) Rollback() error {
 }
 
 func (stmt *fakeStmt) Close() error {
+	stmt.db.Log("[Stmt.Close]")
 	return nil
 }
 
 func (stmt *fakeStmt) NumInput() int {
-	return 0
+	return -1 // fakeDriver doesn't know its number of placeholders
 }
 
 func (stmt *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
+	stmt.db.Log("[Stmt.Exec]", convertValuesToString(args))
 	return nil, nil
 }
 
 func (stmt *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
+	stmt.db.Log("[Stmt.Query]", convertValuesToString(args))
 	return nil, nil
+}
+
+func convertValuesToString(args []driver.Value) string {
+	buf := new(bytes.Buffer)
+	for _, arg := range args {
+		fmt.Fprintf(buf, " %#v", arg)
+	}
+	return buf.String()
 }
