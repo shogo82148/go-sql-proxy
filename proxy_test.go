@@ -7,6 +7,8 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -248,13 +250,15 @@ func TestHooks(t *testing.T) {
 func TestFakeDB(t *testing.T) {
 	testName := t.Name()
 	testCases := []struct {
-		name     string
+		opt      *fakeConnOption
 		hooksLog string
 		f        func(db *sql.DB) error
 	}{
 		{
-			name: "execAll",
-			hooksLog: "[PreOpen] " + testName + "-proxy-execAll\n" +
+			opt: &fakeConnOption{
+				Name: "execAll",
+			},
+			hooksLog: "[PreOpen]\n" +
 				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
@@ -262,8 +266,25 @@ func TestFakeDB(t *testing.T) {
 			},
 		},
 		{
-			name: "queryAll",
-			hooksLog: "[PreOpen] " + testName + "-proxy-queryAll\n" +
+			opt: &fakeConnOption{
+				Name:     "execError",
+				FailExec: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				if err == nil {
+					return errors.New("excepted error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "queryAll",
+			},
+			hooksLog: "[PreOpen]\n" +
 				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
@@ -271,8 +292,25 @@ func TestFakeDB(t *testing.T) {
 			},
 		},
 		{
-			name: "commit",
-			hooksLog: "[PreOpen] " + testName + "-proxy-commit\n" +
+			opt: &fakeConnOption{
+				Name:      "queryError",
+				FailQuery: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				if err == nil {
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "commit",
+			},
+			hooksLog: "[PreOpen]\n" +
 				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
@@ -280,8 +318,10 @@ func TestFakeDB(t *testing.T) {
 			},
 		},
 		{
-			name: "rollback",
-			hooksLog: "[PreOpen] " + testName + "-proxy-rollback\n" +
+			opt: &fakeConnOption{
+				Name: "rollback",
+			},
+			hooksLog: "[PreOpen]\n" +
 				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
@@ -291,18 +331,24 @@ func TestFakeDB(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		tc := tc
+		t.Run(tc.opt.Name, func(t *testing.T) {
 			// install a proxy
+			name := tc.opt.Name
 			buf := &bytes.Buffer{}
-			driverName := fmt.Sprintf("%s-proxy-%s", testName, tc.name)
+			driverName := fmt.Sprintf("%s-proxy-%s", testName, name)
 			sql.Register(driverName, &Proxy{
 				Driver: fdriver,
 				Hooks:  newLoggingHook(buf),
 			})
 
 			// Run test queries directly
-			dbName := fmt.Sprintf("%s-%s", testName, tc.name)
-			db, err := sql.Open("fakedb", dbName)
+			tc.opt.Name = fmt.Sprintf("%s-%s", testName, name)
+			dbName, err := json.Marshal(tc.opt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			db, err := sql.Open("fakedb", string(dbName))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -311,8 +357,9 @@ func TestFakeDB(t *testing.T) {
 			}
 
 			// Run test queris via a proxy
-			dbProxyName := fmt.Sprintf("%s-proxy-%s", testName, tc.name)
-			dbProxy, err := sql.Open(driverName, dbProxyName)
+			tc.opt.Name = fmt.Sprintf("%s-proxy-%s", testName, name)
+			dbProxyName, err := json.Marshal(tc.opt)
+			dbProxy, err := sql.Open(driverName, string(dbProxyName))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -321,8 +368,8 @@ func TestFakeDB(t *testing.T) {
 			}
 
 			// check the logs
-			want := fdriver.DB(dbName).LogToString()
-			got := fdriver.DB(dbProxyName).LogToString()
+			want := fdriver.DB(string(dbName)).LogToString()
+			got := fdriver.DB(string(dbProxyName)).LogToString()
 			if want != got {
 				t.Errorf("want %s, got %s", want, got)
 			}

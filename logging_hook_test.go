@@ -24,7 +24,7 @@ func newLoggingHook(w io.Writer) *loggingHook {
 func (h *loggingHook) preOpen(c context.Context, name string) (interface{}, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	fmt.Fprintln(h, "[PreOpen]", name)
+	fmt.Fprintln(h, "[PreOpen]")
 	return nil, nil
 }
 

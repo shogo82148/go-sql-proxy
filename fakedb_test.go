@@ -6,9 +6,22 @@ import (
 	"bytes"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 )
+
+type fakeConnOption struct {
+	// name is the name of database
+	Name string
+
+	// call of Exec will fail if failExec is true
+	FailExec bool
+
+	// call of Query will fail if failQuery is true
+	FailQuery bool
+}
 
 type fakeDriver struct {
 	mu  sync.Mutex
@@ -21,15 +34,18 @@ type fakeDB struct {
 }
 
 type fakeConn struct {
-	db *fakeDB
+	db  *fakeDB
+	opt *fakeConnOption
 }
 
 type fakeTx struct {
-	db *fakeDB
+	db  *fakeDB
+	opt *fakeConnOption
 }
 
 type fakeStmt struct {
-	db *fakeDB
+	db  *fakeDB
+	opt *fakeConnOption
 }
 
 var fdriver = &fakeDriver{}
@@ -42,7 +58,13 @@ func (d *fakeDriver) Open(name string) (driver.Conn, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	db, ok := d.dbs[name]
+	var opt fakeConnOption
+	err := json.Unmarshal([]byte(name), &opt)
+	if err != nil {
+		return nil, err
+	}
+
+	db, ok := d.dbs[opt.Name]
 	if !ok {
 		db = &fakeDB{
 			log: &bytes.Buffer{},
@@ -53,7 +75,8 @@ func (d *fakeDriver) Open(name string) (driver.Conn, error) {
 		d.dbs[name] = db
 	}
 	return &fakeConn{
-		db: db,
+		db:  db,
+		opt: &opt,
 	}, nil
 }
 
@@ -80,7 +103,8 @@ func (db *fakeDB) LogToString() string {
 func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 	c.db.Log("[Conn.Prepare]", query)
 	return &fakeStmt{
-		db: c.db,
+		db:  c.db,
+		opt: c.opt,
 	}, nil
 }
 
@@ -91,7 +115,8 @@ func (c *fakeConn) Close() error {
 func (c *fakeConn) Begin() (driver.Tx, error) {
 	c.db.Log("[Conn.Begin]")
 	return &fakeTx{
-		db: c.db,
+		db:  c.db,
+		opt: c.opt,
 	}, nil
 }
 
@@ -116,11 +141,19 @@ func (stmt *fakeStmt) NumInput() int {
 
 func (stmt *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	stmt.db.Log("[Stmt.Exec]", convertValuesToString(args))
+	if stmt.opt.FailExec {
+		stmt.db.Log("[Stmt.Exec]", "ERROR!")
+		return nil, errors.New("Exec failed")
+	}
 	return nil, nil
 }
 
 func (stmt *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	stmt.db.Log("[Stmt.Query]", convertValuesToString(args))
+	if stmt.opt.FailQuery {
+		stmt.db.Log("[Stmt.Query]", "ERROR!")
+		return nil, errors.New("Query failed")
+	}
 	return nil, nil
 }
 
