@@ -310,22 +310,40 @@ func TestFakeDB(t *testing.T) {
 			opt: &fakeConnOption{
 				Name: "commit",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreQuery]\n[Query]\n[PostQuery]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
 			f: func(db *sql.DB) error {
-				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
-				return err
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				_, err = tx.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
 			},
 		},
 		{
 			opt: &fakeConnOption{
 				Name: "rollback",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreQuery]\n[Query]\n[PostQuery]\n" +
+				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
 			f: func(db *sql.DB) error {
-				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
-				return err
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				_, err = tx.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				if err != nil {
+					return err
+				}
+				return tx.Rollback()
 			},
 		},
 	}
