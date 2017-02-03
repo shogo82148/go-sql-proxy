@@ -411,7 +411,7 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnExt",
 			},
 			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
 				if err != nil {

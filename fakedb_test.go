@@ -4,6 +4,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -45,6 +46,9 @@ type fakeConn struct {
 // fakeConnExt implements Execer and Queryer
 type fakeConnExt fakeConn
 
+// fakeConnCtx is fakeConn with context
+type fakeConnCtx fakeConn
+
 type fakeTx struct {
 	db  *fakeDB
 	opt *fakeConnOption
@@ -59,16 +63,31 @@ type fakeStmt struct {
 // fakeStmtExt implements ColumnConverter
 type fakeStmtExt fakeStmt
 
+// fakeStmtCtx is fakeStmt with context
+type fakeStmtCtx fakeStmt
+
 var fdriver = &fakeDriver{}
 var _ driver.Driver = &fakeDriver{}
 var _ driver.Conn = &fakeConn{}
 var _ driver.Conn = &fakeConnExt{}
 var _ driver.Execer = &fakeConnExt{}
 var _ driver.Queryer = &fakeConnExt{}
+var _ driver.Conn = &fakeConnCtx{}
+var _ driver.Execer = &fakeConnCtx{}
+var _ driver.ExecerContext = &fakeConnCtx{}
+var _ driver.Queryer = &fakeConnCtx{}
+var _ driver.QueryerContext = &fakeConnCtx{}
+var _ driver.ConnBeginTx = &fakeConnCtx{}
+var _ driver.ConnPrepareContext = &fakeConnCtx{}
+var _ driver.Pinger = &fakeConnCtx{}
 var _ driver.Tx = &fakeTx{}
 var _ driver.Stmt = &fakeStmt{}
 var _ driver.Stmt = &fakeStmtExt{}
 var _ driver.ColumnConverter = &fakeStmtExt{}
+var _ driver.Stmt = &fakeStmtCtx{}
+var _ driver.ColumnConverter = &fakeStmtCtx{}
+var _ driver.StmtExecContext = &fakeStmtCtx{}
+var _ driver.StmtQueryContext = &fakeStmtCtx{}
 
 func init() {
 	sql.Register("fakedb", fdriver)
@@ -104,6 +123,11 @@ func (d *fakeDriver) Open(name string) (driver.Conn, error) {
 		}
 	case "fakeConnExt":
 		conn = &fakeConnExt{
+			db:  db,
+			opt: &opt,
+		}
+	case "fakeConnCtx":
+		conn = &fakeConnCtx{
 			db:  db,
 			opt: &opt,
 		}
@@ -184,9 +208,68 @@ func (c *fakeConnExt) Exec(query string, args []driver.Value) (driver.Result, er
 }
 
 func (c *fakeConnExt) Query(query string, args []driver.Value) (driver.Rows, error) {
-	c.db.Log("[Conn.Prepare]", query, convertValuesToString(args))
+	c.db.Log("[Conn.Query]", query, convertValuesToString(args))
 	if c.opt.FailQuery {
 		c.db.Log("[Conn.Query]", "ERROR!")
+		return nil, errors.New("Query failed")
+	}
+	return nil, nil
+}
+
+func (c *fakeConnCtx) Ping(ctx context.Context) error {
+	c.db.Log("[Conn.Ping]")
+	return nil
+}
+
+func (c *fakeConnCtx) Prepare(query string) (driver.Stmt, error) {
+	panic("not supported")
+}
+
+func (c *fakeConnCtx) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	c.db.Log("[Conn.PrepareContext]", query)
+	return &fakeStmtCtx{
+		db:  c.db,
+		opt: c.opt,
+	}, nil
+}
+
+func (c *fakeConnCtx) Close() error {
+	return nil
+}
+
+func (c *fakeConnCtx) Begin() (driver.Tx, error) {
+	panic("not supported")
+}
+
+func (c *fakeConnCtx) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	c.db.Log("[Conn.BeginTx]")
+	return &fakeTx{
+		db:  c.db,
+		opt: c.opt,
+	}, nil
+}
+
+func (c *fakeConnCtx) Exec(query string, args []driver.Value) (driver.Result, error) {
+	panic("not supported")
+}
+
+func (c *fakeConnCtx) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	c.db.Log("[Conn.ExecContext]", query, convertNamedValuesToString(args))
+	if c.opt.FailExec {
+		c.db.Log("[Conn.ExecContext]", "ERROR!")
+		return nil, errors.New("Exec failed")
+	}
+	return nil, nil
+}
+
+func (c *fakeConnCtx) Query(query string, args []driver.Value) (driver.Rows, error) {
+	panic("not supported")
+}
+
+func (c *fakeConnCtx) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	c.db.Log("[Conn.QueryContext]", query, convertNamedValuesToString(args))
+	if c.opt.FailQuery {
+		c.db.Log("[Conn.QueryContext]", "ERROR!")
 		return nil, errors.New("Query failed")
 	}
 	return nil, nil
@@ -251,7 +334,55 @@ func (stmt *fakeStmtExt) ColumnConverter(idx int) driver.ValueConverter {
 	return driver.DefaultParameterConverter
 }
 
+func (stmt *fakeStmtCtx) Close() error {
+	stmt.db.Log("[Stmt.Close]")
+	return nil
+}
+
+func (stmt *fakeStmtCtx) NumInput() int {
+	return -1 // fakeDriver doesn't know its number of placeholders
+}
+
+func (stmt *fakeStmtCtx) Exec(args []driver.Value) (driver.Result, error) {
+	panic("not supported")
+}
+
+func (stmt *fakeStmtCtx) ExecContext(ctx context.Context, args []driver.NamedValue) (driver.Result, error) {
+	stmt.db.Log("[Conn.ExecContext]", convertNamedValuesToString(args))
+	if stmt.opt.FailExec {
+		stmt.db.Log("[Conn.ExecContext]", "ERROR!")
+		return nil, errors.New("Exec failed")
+	}
+	return nil, nil
+}
+
+func (stmt *fakeStmtCtx) Query(args []driver.Value) (driver.Rows, error) {
+	panic("not supported")
+}
+
+func (stmt *fakeStmtCtx) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
+	stmt.db.Log("[Conn.QueryContext]", convertNamedValuesToString(args))
+	if stmt.opt.FailQuery {
+		stmt.db.Log("[Conn.QueryContext]", "ERROR!")
+		return nil, errors.New("Query failed")
+	}
+	return nil, nil
+}
+
+func (stmt *fakeStmtCtx) ColumnConverter(idx int) driver.ValueConverter {
+	stmt.db.Log("[Stmt.ColumnConverter]", idx)
+	return driver.DefaultParameterConverter
+}
+
 func convertValuesToString(args []driver.Value) string {
+	buf := new(bytes.Buffer)
+	for _, arg := range args {
+		fmt.Fprintf(buf, " %#v", arg)
+	}
+	return buf.String()
+}
+
+func convertNamedValuesToString(args []driver.NamedValue) string {
 	buf := new(bytes.Buffer)
 	for _, arg := range args {
 		fmt.Fprintf(buf, " %#v", arg)
