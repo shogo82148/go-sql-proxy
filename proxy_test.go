@@ -405,6 +405,22 @@ func TestFakeDB(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			opt: &fakeConnOption{
+				Name:     "prepare-ext",
+				ConnType: "fakeConnExt",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
+				if err != nil {
+					return err
+				}
+				_, err = stmt.Exec(123456789)
+				return err
+			},
+		},
 	}
 
 	for _, tc := range testCases {
