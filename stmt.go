@@ -42,9 +42,10 @@ func (stmt *Stmt) ExecContext(c context.Context, args []driver.NamedValue) (driv
 	var ctx interface{}
 	var err error
 	var result driver.Result
+	hooks := stmt.Proxy.getHooks(c)
 
-	defer func() { stmt.Proxy.Hooks.postExec(c, ctx, stmt, args, result, err) }()
-	if ctx, err = stmt.Proxy.Hooks.preExec(c, stmt, args); err != nil {
+	defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
+	if ctx, err = hooks.preExec(c, stmt, args); err != nil {
 		return nil, err
 	}
 
@@ -68,7 +69,7 @@ func (stmt *Stmt) ExecContext(c context.Context, args []driver.NamedValue) (driv
 		return result, err
 	}
 
-	if err = stmt.Proxy.Hooks.exec(c, ctx, stmt, args, result); err != nil {
+	if err = hooks.exec(c, ctx, stmt, args, result); err != nil {
 		return result, err
 	}
 
@@ -88,9 +89,10 @@ func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (dri
 	var ctx interface{}
 	var err error
 	var rows driver.Rows
+	hooks := stmt.Proxy.getHooks(c)
 
-	defer func() { stmt.Proxy.Hooks.postQuery(c, ctx, stmt, args, rows, err) }()
-	if ctx, err = stmt.Proxy.Hooks.preQuery(c, stmt, args); err != nil {
+	defer func() { hooks.postQuery(c, ctx, stmt, args, rows, err) }()
+	if ctx, err = hooks.preQuery(c, stmt, args); err != nil {
 		return nil, err
 	}
 
@@ -116,7 +118,7 @@ func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (dri
 		return nil, err
 	}
 
-	if err = stmt.Proxy.Hooks.query(c, ctx, stmt, args, rows); err != nil {
+	if err = hooks.query(c, ctx, stmt, args, rows); err != nil {
 		return nil, err
 	}
 

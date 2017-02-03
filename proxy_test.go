@@ -650,6 +650,43 @@ func TestFakeDB(t *testing.T) {
 				return tx.Commit()
 			},
 		},
+		{
+			opt: &fakeConnOption{
+				Name:     "context-with-no-hooks",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				// remove the hooks from the current context.
+				// Exec will not be logged.
+				ctx := WithHooks(context.Background())
+				_, err := db.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "context-with-hooks",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				buf := &bytes.Buffer{}
+				ctx := context.WithValue(context.Background(), contextHooksKey{}, newLoggingHook(buf))
+				_, err := db.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				if err != nil {
+					return err
+				}
+				if _, ok := db.Driver().(*Proxy); ok {
+					got := buf.String()
+					want := "[PreExec]\n[Exec]\n[PostExec]\n"
+					if got != want {
+						return fmt.Errorf("want %s, got %s", want, got)
+					}
+				}
+				return nil
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -661,7 +698,7 @@ func TestFakeDB(t *testing.T) {
 			driverName := fmt.Sprintf("%s-proxy-%s", testName, name)
 			sql.Register(driverName, &Proxy{
 				Driver: fdriver,
-				Hooks:  newLoggingHook(buf),
+				hooks:  newLoggingHook(buf),
 			})
 
 			// Run test queries directly

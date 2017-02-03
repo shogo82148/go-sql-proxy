@@ -75,18 +75,12 @@ func findCaller(f Filter) int {
 
 // NewTraceProxy generates a proxy that logs queries.
 func NewTraceProxy(d driver.Driver, o Outputter) *Proxy {
-	return &Proxy{
-		Driver: d,
-		Hooks:  NewTraceHooks(o, nil),
-	}
+	return NewProxyContext(d, NewTraceHooks(o, nil))
 }
 
 // NewTraceProxyWithFilter generates a proxy that logs queries.
 func NewTraceProxyWithFilter(d driver.Driver, o Outputter, f Filter) *Proxy {
-	return &Proxy{
-		Driver: d,
-		Hooks:  NewTraceHooks(o, f),
-	}
+	return NewProxyContext(d, NewTraceHooks(o, f))
 }
 
 func NewTraceHooks(o Outputter, f Filter) *HooksContext {

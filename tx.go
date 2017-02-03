@@ -19,9 +19,10 @@ type Tx struct {
 func (tx *Tx) Commit() error {
 	var err error
 	var ctx interface{}
+	hooks := tx.Proxy.getHooks(tx.ctx)
 
-	defer func() { tx.Proxy.Hooks.postCommit(tx.ctx, ctx, tx, err) }()
-	if ctx, err = tx.Proxy.Hooks.preCommit(tx.ctx, tx); err != nil {
+	defer func() { hooks.postCommit(tx.ctx, ctx, tx, err) }()
+	if ctx, err = hooks.preCommit(tx.ctx, tx); err != nil {
 		return err
 	}
 
@@ -29,7 +30,7 @@ func (tx *Tx) Commit() error {
 		return err
 	}
 
-	return tx.Proxy.Hooks.commit(tx.ctx, ctx, tx)
+	return hooks.commit(tx.ctx, ctx, tx)
 }
 
 // Rollback rollbacks the transaction.
@@ -37,9 +38,10 @@ func (tx *Tx) Commit() error {
 func (tx *Tx) Rollback() error {
 	var err error
 	var ctx interface{}
+	hooks := tx.Proxy.getHooks(tx.ctx)
 
-	defer func() { tx.Proxy.Hooks.postRollback(tx.ctx, ctx, tx, err) }()
-	if ctx, err = tx.Proxy.Hooks.preRollback(tx.ctx, tx); err != nil {
+	defer func() { hooks.postRollback(tx.ctx, ctx, tx, err) }()
+	if ctx, err = hooks.preRollback(tx.ctx, tx); err != nil {
 		return err
 	}
 
@@ -47,5 +49,5 @@ func (tx *Tx) Rollback() error {
 		return err
 	}
 
-	return tx.Proxy.Hooks.rollback(tx.ctx, ctx, tx)
+	return hooks.rollback(tx.ctx, ctx, tx)
 }

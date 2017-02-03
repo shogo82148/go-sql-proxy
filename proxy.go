@@ -13,7 +13,7 @@ import (
 // It adds hook points to other sql drivers.
 type Proxy struct {
 	Driver driver.Driver
-	Hooks  hooks
+	hooks  hooks
 }
 
 // hooks is callback functions for the proxy.
@@ -777,19 +777,262 @@ func (h *Hooks) postRollback(c context.Context, ctx interface{}, tx *Tx, err err
 	return h.PostRollback(ctx, tx)
 }
 
+type multipleHooks []hooks
+
+func (h multipleHooks) preDo(f func(h hooks) (interface{}, error)) (interface{}, error) {
+	if h == nil {
+		return nil, nil
+	}
+	ctx := make([]interface{}, len(h))
+	var err error
+	for i, hk := range h {
+		ctx0, err0 := f(hk)
+		ctx[i] = ctx0
+		if err0 != nil && err == nil {
+			err = err0
+		}
+	}
+	return ctx, err
+}
+
+func (h multipleHooks) do(ctx interface{}, f func(h hooks, ctx interface{}) error) error {
+	if h == nil {
+		return nil
+	}
+	sctx, ok := ctx.([]interface{})
+	if !ok {
+		return errors.New("invalid context type")
+	}
+	for i, hk := range h {
+		if err := f(hk, sctx[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h multipleHooks) postDo(ctx interface{}, err error, f func(h hooks, ctx interface{}, err error) error) error {
+	if h == nil {
+		return nil
+	}
+	sctx, ok := ctx.([]interface{})
+	if !ok {
+		return errors.New("invalid context type")
+	}
+	var reterr error
+	for i := len(h) - 1; i >= 0; i-- {
+		if err0 := f(h[i], sctx[i], err); err0 != nil {
+			if err == nil {
+				err = err0
+			}
+			if reterr == nil {
+				reterr = err0
+			}
+		}
+	}
+	return reterr
+}
+
+func (h multipleHooks) prePing(c context.Context, conn *Conn) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.prePing(c, conn)
+	})
+}
+
+func (h multipleHooks) ping(c context.Context, ctx interface{}, conn *Conn) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.ping(c, ctx, conn)
+	})
+}
+
+func (h multipleHooks) postPing(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postPing(c, ctx, conn, err)
+	})
+}
+
+func (h multipleHooks) preOpen(c context.Context, name string) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preOpen(c, name)
+	})
+}
+
+func (h multipleHooks) open(c context.Context, ctx interface{}, conn driver.Conn) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.open(c, ctx, conn)
+	})
+}
+
+func (h multipleHooks) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postOpen(c, ctx, conn, err)
+	})
+}
+
+func (h multipleHooks) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preExec(c, stmt, args)
+	})
+}
+
+func (h multipleHooks) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.exec(c, ctx, stmt, args, result)
+	})
+}
+
+func (h multipleHooks) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postExec(c, ctx, stmt, args, result, err)
+	})
+}
+
+func (h multipleHooks) preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preQuery(c, stmt, args)
+	})
+}
+
+func (h multipleHooks) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.query(c, ctx, stmt, args, rows)
+	})
+}
+
+func (h multipleHooks) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postQuery(c, ctx, stmt, args, rows, err)
+	})
+}
+
+func (h multipleHooks) preBegin(c context.Context, conn *Conn) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preBegin(c, conn)
+	})
+}
+
+func (h multipleHooks) begin(c context.Context, ctx interface{}, conn *Conn) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.begin(c, ctx, conn)
+	})
+}
+
+func (h multipleHooks) postBegin(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postBegin(c, ctx, conn, err)
+	})
+}
+
+func (h multipleHooks) preCommit(c context.Context, tx *Tx) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preCommit(c, tx)
+	})
+}
+
+func (h multipleHooks) commit(c context.Context, ctx interface{}, tx *Tx) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.commit(c, ctx, tx)
+	})
+}
+
+func (h multipleHooks) postCommit(c context.Context, ctx interface{}, tx *Tx, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postCommit(c, ctx, tx, err)
+	})
+}
+
+func (h multipleHooks) preRollback(c context.Context, tx *Tx) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preRollback(c, tx)
+	})
+}
+
+func (h multipleHooks) rollback(c context.Context, ctx interface{}, tx *Tx) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.rollback(c, ctx, tx)
+	})
+}
+
+func (h multipleHooks) postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postRollback(c, ctx, tx, err)
+	})
+}
+
 // NewProxy creates new Proxy driver.
-func NewProxy(driver driver.Driver, hooks *Hooks) *Proxy {
+// DEPRECATED: You should use NewProxyContext instead.
+func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
+	switch len(hs) {
+	case 0:
+		return &Proxy{
+			Driver: driver,
+			hooks:  (*HooksContext)(nil),
+		}
+	case 1:
+		return &Proxy{
+			Driver: driver,
+			hooks:  hs[0],
+		}
+	}
+
+	hooksSlice := make([]hooks, len(hs))
+	for i, hk := range hs {
+		hooksSlice[i] = hk
+	}
 	return &Proxy{
 		Driver: driver,
-		Hooks:  hooks,
+		hooks:  multipleHooks(hooksSlice),
 	}
 }
 
-func NewProxyContext(driver driver.Driver, hooks *HooksContext) *Proxy {
+// NewProxy creates new Proxy driver.
+func NewProxyContext(driver driver.Driver, hs ...*HooksContext) *Proxy {
+	switch len(hs) {
+	case 0:
+		return &Proxy{
+			Driver: driver,
+			hooks:  (*HooksContext)(nil),
+		}
+	case 1:
+		return &Proxy{
+			Driver: driver,
+			hooks:  hs[0],
+		}
+	}
+
+	hooksSlice := make([]hooks, len(hs))
+	for i, hk := range hs {
+		hooksSlice[i] = hk
+	}
 	return &Proxy{
 		Driver: driver,
-		Hooks:  hooks,
+		hooks:  multipleHooks(hooksSlice),
 	}
+}
+
+type contextHooksKey struct{}
+
+// WithHooks returns a copy of parent context in which the hooks associated.
+func WithHooks(ctx context.Context, hs ...*HooksContext) context.Context {
+	switch len(hs) {
+	case 0:
+		return context.WithValue(ctx, contextHooksKey{}, (*HooksContext)(nil))
+	case 1:
+		return context.WithValue(ctx, contextHooksKey{}, hs[0])
+	}
+
+	hooksSlice := make([]hooks, len(hs))
+	for i, hk := range hs {
+		hooksSlice[i] = hk
+	}
+	return context.WithValue(ctx, contextHooksKey{}, multipleHooks(hooksSlice))
+}
+
+func (p *Proxy) getHooks(ctx context.Context) hooks {
+	if h, ok := ctx.Value(contextHooksKey{}).(hooks); ok {
+		return h
+	}
+	return p.hooks
 }
 
 // Open creates new connection which is wrapped by Conn.
@@ -805,9 +1048,9 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 	// or otherwise changes to the `ctx` and `conn` parameters
 	// within this Open() method does not get applied at the
 	// time defer is fired
-	defer func() { p.Hooks.postOpen(c, ctx, conn, err) }()
+	defer func() { p.hooks.postOpen(c, ctx, conn, err) }()
 
-	if ctx, err = p.Hooks.preOpen(c, name); err != nil {
+	if ctx, err = p.hooks.preOpen(c, name); err != nil {
 		return nil, err
 	}
 	conn, err = p.Driver.Open(name)
@@ -820,7 +1063,7 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 		Proxy: p,
 	}
 
-	if err = p.Hooks.open(c, ctx, conn); err != nil {
+	if err = p.hooks.open(c, ctx, conn); err != nil {
 		conn.Close()
 		return nil, err
 	}
