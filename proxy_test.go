@@ -488,6 +488,18 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
+				Name:     "execAll-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
 				Name:     "prepare-ctx",
 				ConnType: "fakeConnCtx",
 			},

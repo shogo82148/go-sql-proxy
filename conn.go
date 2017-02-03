@@ -170,7 +170,18 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		return nil, err
 	}
 
-	result, err = execer.Exec(query, namedValuesToValues(args)) // TODO: call ExecContext if conn.Conn satisfies ConnExecContext
+	if execerCtx, ok := execer.(driver.ExecerContext); ok {
+		result, err = execerCtx.ExecContext(c, query, args)
+	} else {
+		result, err = execer.Exec(query, namedValuesToValues(args))
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				return result, c.Err()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
