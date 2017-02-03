@@ -5,6 +5,9 @@ package proxy
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
+
+	"github.com/golang/go/src/database/sql"
 )
 
 // Conn adds hook points into "database/sql/driver".Conn.
@@ -70,17 +73,40 @@ func (conn *Conn) Begin() (driver.Tx, error) {
 // BeginContext starts and returns a new transaction which is wrapped by Tx.
 // It will trigger PreBegin, Begin, PostBegin hooks.
 func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	// set the hooks.
 	var err error
 	var ctx interface{}
-
 	var tx driver.Tx
 	defer func() { conn.Proxy.Hooks.postBegin(c, ctx, conn, err) }()
-
 	if ctx, err = conn.Proxy.Hooks.preBegin(c, conn); err != nil {
 		return nil, err
 	}
 
-	tx, err = conn.Conn.Begin() // TODO: call BeginContext if conn.Conn satisfies ConnBeginContext
+	// call the original method.
+	if connCtx, ok := conn.Conn.(driver.ConnBeginTx); ok {
+		tx, err = connCtx.BeginTx(c, opts)
+	} else {
+		if c.Done() != context.Background().Done() {
+			// the original driver does not support non-default transaction options.
+			// so return error if non-default transaction is requested.
+			if opts.Isolation != driver.IsolationLevel(sql.LevelDefault) {
+				return nil, errors.New("proxy: driver does not support non-default isolation level")
+			}
+			if opts.ReadOnly {
+				return nil, errors.New("proxy: driver does not support read-only transactions")
+			}
+		}
+		tx, err = conn.Conn.Begin()
+		if err == nil {
+			// check the context is already done.
+			select {
+			default:
+			case <-c.Done():
+				tx.Rollback()
+				return nil, c.Err()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -323,14 +323,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreQuery]\n[Query]\n[PostQuery]\n" +
 				"[PreCommit]\n[Commit]\n[PostCommit]\n",
 			f: func(db *sql.DB) error {
 				tx, err := db.Begin()
-				if err != nil {
-					return err
-				}
-				_, err = tx.Query("SELECT * FROM test WHERE id = ?", 123456789)
 				if err != nil {
 					return err
 				}
@@ -343,18 +338,51 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreQuery]\n[Query]\n[PostQuery]\n" +
 				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
 			f: func(db *sql.DB) error {
 				tx, err := db.Begin()
 				if err != nil {
 					return err
 				}
-				_, err = tx.Query("SELECT * FROM test WHERE id = ?", 123456789)
-				if err != nil {
-					return err
-				}
 				return tx.Rollback()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "begin-isolation",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[PostBegin]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				_, err := db.BeginTx(ctx, &sql.TxOptions{
+					Isolation: sql.LevelLinearizable,
+				})
+				if err == nil {
+					// because the driver does not support sql.LevelLinearizable
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "begin-readonly",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[PostBegin]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				_, err := db.BeginTx(ctx, &sql.TxOptions{
+					ReadOnly: true,
+				})
+				if err == nil {
+					// because the driver does not support read-only transaction
+					return errors.New("expected error, but not")
+				}
+				return nil
 			},
 		},
 
@@ -442,6 +470,78 @@ func TestFakeDB(t *testing.T) {
 				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
 			f: func(db *sql.DB) error {
 				return db.Ping()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "commit-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "rollback-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
+			f: func(db *sql.DB) error {
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				return tx.Rollback()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "begin-ctx-isolation",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				tx, err := db.BeginTx(ctx, &sql.TxOptions{
+					Isolation: sql.LevelLinearizable,
+				})
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "begin-ctx-readonly",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				tx, err := db.BeginTx(ctx, &sql.TxOptions{
+					ReadOnly: true,
+				})
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
 			},
 		},
 	}

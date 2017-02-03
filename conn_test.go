@@ -5,8 +5,7 @@ package proxy
 import "database/sql/driver"
 
 var _ driver.Conn = &Conn{}
-
-//var _ driver.ConnBeginTx = &Conn{}
+var _ driver.ConnBeginTx = &Conn{}
 var _ driver.ConnPrepareContext = &Conn{}
 var _ driver.Execer = &Conn{}
 var _ driver.ExecerContext = &Conn{}
