@@ -512,7 +512,24 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
-				Name:     "prepare-ctx",
+				Name:     "prepare-exec-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("CREATE TABLE t1 (id INTEGER PRIMARY KEY)")
+				if err != nil {
+					return nil
+				}
+				defer stmt.Close()
+				_, err = stmt.Exec(123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "prepare-query-ctx",
 				ConnType: "fakeConnCtx",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +

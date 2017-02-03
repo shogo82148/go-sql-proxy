@@ -48,13 +48,24 @@ func (stmt *Stmt) ExecContext(c context.Context, args []driver.NamedValue) (driv
 		return nil, err
 	}
 
-	result, err = stmt.Stmt.Exec(namedValuesToValues(args)) // TODO: call ExecContext if conn.Conn satisfies StmtExecContext
+	if execerContext, ok := stmt.Stmt.(driver.StmtExecContext); ok {
+		result, err = execerContext.ExecContext(c, args)
+	} else {
+		result, err = stmt.Stmt.Exec(namedValuesToValues(args))
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				err = c.Err()
+			}
+		}
+	}
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
 	if err = stmt.Proxy.Hooks.exec(c, ctx, stmt, args, result); err != nil {
-		return nil, err
+		return result, err
 	}
 
 	return result, nil
