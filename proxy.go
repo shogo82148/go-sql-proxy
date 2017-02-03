@@ -6,6 +6,7 @@ package proxy
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 )
 
 // Proxy is a sql driver.
@@ -609,13 +610,16 @@ type Hooks struct {
 	PostRollback func(ctx interface{}, tx *Tx) error
 }
 
-func namedValuesToValues(args []driver.NamedValue) []driver.Value {
+func namedValuesToValues(args []driver.NamedValue) ([]driver.Value, error) {
+	var err error
 	ret := make([]driver.Value, len(args))
 	for _, arg := range args {
-		// TODO: Check args.Name is empty because the original driver doesn't support it.
+		if len(arg.Name) > 0 {
+			err = errors.New("proxy: driver does not support the use of Named Parameters")
+		}
 		ret[arg.Ordinal-1] = arg.Value
 	}
-	return ret
+	return ret, err
 }
 
 func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
@@ -666,42 +670,48 @@ func (h *Hooks) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue)
 	if h == nil || h.PreExec == nil {
 		return nil, nil
 	}
-	return h.PreExec(stmt, namedValuesToValues(args))
+	dargs, _ := namedValuesToValues(args)
+	return h.PreExec(stmt, dargs)
 }
 
 func (h *Hooks) exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
 	if h == nil || h.Exec == nil {
 		return nil
 	}
-	return h.Exec(ctx, stmt, namedValuesToValues(args), result)
+	dargs, _ := namedValuesToValues(args)
+	return h.Exec(ctx, stmt, dargs, result)
 }
 
 func (h *Hooks) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
 	if h == nil || h.PostExec == nil {
 		return nil
 	}
-	return h.PostExec(ctx, stmt, namedValuesToValues(args), result)
+	dargs, _ := namedValuesToValues(args)
+	return h.PostExec(ctx, stmt, dargs, result)
 }
 
 func (h *Hooks) preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	if h == nil || h.PreQuery == nil {
 		return nil, nil
 	}
-	return h.PreQuery(stmt, namedValuesToValues(args))
+	dargs, _ := namedValuesToValues(args)
+	return h.PreQuery(stmt, dargs)
 }
 
 func (h *Hooks) query(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
 	if h == nil || h.Query == nil {
 		return nil
 	}
-	return h.Query(ctx, stmt, namedValuesToValues(args), rows)
+	dargs, _ := namedValuesToValues(args)
+	return h.Query(ctx, stmt, dargs, rows)
 }
 
 func (h *Hooks) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
 	if h == nil || h.PostQuery == nil {
 		return nil
 	}
-	return h.PostQuery(ctx, stmt, namedValuesToValues(args), rows)
+	dargs, _ := namedValuesToValues(args)
+	return h.PostQuery(ctx, stmt, dargs, rows)
 }
 
 func (h *Hooks) preBegin(c context.Context, conn *Conn) (interface{}, error) {

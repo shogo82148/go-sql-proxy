@@ -293,6 +293,21 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
+				Name: "execError-NamedValue",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				// this Exec will fail, because the driver doesn't support sql.Named()
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", sql.Named("foo", 123456789))
+				if err == nil {
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
 				Name: "queryAll",
 			},
 			hooksLog: "[PreOpen]\n" +
@@ -500,6 +515,18 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
+				Name:     "execAll-NamedValue-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", sql.Named("foo", 123456789))
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
 				Name:     "queryAll-ctx",
 				ConnType: "fakeConnCtx",
 			},
@@ -648,7 +675,7 @@ func TestFakeDB(t *testing.T) {
 				t.Fatal(err)
 			}
 			if err = tc.f(db); err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 
 			// Run test queris via a proxy
@@ -659,7 +686,7 @@ func TestFakeDB(t *testing.T) {
 				t.Fatal(err)
 			}
 			if err = tc.f(dbProxy); err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 
 			// check the logs

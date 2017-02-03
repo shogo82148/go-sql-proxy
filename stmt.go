@@ -51,7 +51,11 @@ func (stmt *Stmt) ExecContext(c context.Context, args []driver.NamedValue) (driv
 	if execerContext, ok := stmt.Stmt.(driver.StmtExecContext); ok {
 		result, err = execerContext.ExecContext(c, args)
 	} else {
-		result, err = stmt.Stmt.Exec(namedValuesToValues(args))
+		dargs, err0 := namedValuesToValues(args)
+		if err0 != nil {
+			return nil, err0
+		}
+		result, err = stmt.Stmt.Exec(dargs)
 		if err == nil {
 			select {
 			default:
@@ -93,12 +97,17 @@ func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (dri
 	if queryCtx, ok := stmt.Stmt.(driver.StmtQueryContext); ok {
 		rows, err = queryCtx.QueryContext(c, args)
 	} else {
-		rows, err = stmt.Stmt.Query(namedValuesToValues(args))
+		dargs, err0 := namedValuesToValues(args)
+		if err0 != nil {
+			return nil, err0
+		}
+		rows, err = stmt.Stmt.Query(dargs)
 		if err == nil {
 			select {
 			default:
 			case <-c.Done():
 				rows.Close()
+				rows = nil
 				err = c.Err()
 			}
 		}
