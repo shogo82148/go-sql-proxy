@@ -79,7 +79,19 @@ func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (dri
 		return nil, err
 	}
 
-	rows, err = stmt.Stmt.Query(namedValuesToValues(args)) // TODO: call QueryContext if conn.Conn satisfies StmtQueryContext
+	if queryCtx, ok := stmt.Stmt.(driver.StmtQueryContext); ok {
+		rows, err = queryCtx.QueryContext(c, args)
+	} else {
+		rows, err = stmt.Stmt.Query(namedValuesToValues(args))
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				rows.Close()
+				err = c.Err()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

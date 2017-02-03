@@ -515,13 +515,23 @@ func TestFakeDB(t *testing.T) {
 				Name:     "prepare-ctx",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
 				if err != nil {
 					return nil
 				}
-				return stmt.Close()
+				defer stmt.Close()
+				rows, err := stmt.Query(123456789)
+				if err != nil {
+					return err
+				}
+				// skip close in this test, while you must close the rows in your product.
+				// because the result from fakeDB is broken.
+				// rows.Close()
+				_ = rows
+				return nil
 			},
 		},
 		{

@@ -117,7 +117,7 @@ func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, 
 			default:
 			case <-c.Done():
 				tx.Rollback()
-				return nil, c.Err()
+				err = c.Err()
 			}
 		}
 	}
@@ -178,7 +178,8 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 			select {
 			default:
 			case <-c.Done():
-				return result, c.Err()
+				err = c.Err()
+				return result, err
 			}
 		}
 	}
@@ -235,7 +236,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 			default:
 			case <-c.Done():
 				rows.Close()
-				return nil, c.Err()
+				err = c.Err()
 			}
 		}
 	}
