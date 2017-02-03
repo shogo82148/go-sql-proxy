@@ -3,6 +3,8 @@
 package proxy
 
 import (
+	"bytes"
+	"context"
 	"database/sql/driver"
 	"fmt"
 	"runtime"
@@ -36,6 +38,12 @@ func (f PackageFilter) Ignore(packageName string) {
 	f[packageName] = struct{}{}
 }
 
+var DefaultPackageFilter = PackageFilter{
+	"database/sql":                       struct{}{},
+	"github.com/shogo82148/txmanager":    struct{}{},
+	"github.com/shogo82148/go-sql-proxy": struct{}{},
+}
+
 func findCaller(f Filter) int {
 	// i starts 4. 0: findCaller, 1: hooks, 2: proxy-funcs, 3: database/sql, and equals or greater than 4: user-funcs
 	for i := 4; ; i++ {
@@ -67,95 +75,114 @@ func findCaller(f Filter) int {
 
 // NewTraceProxy generates a proxy that logs queries.
 func NewTraceProxy(d driver.Driver, o Outputter) *Proxy {
-	return NewTraceProxyWithFilter(d, o, nil)
+	return &Proxy{
+		Driver: d,
+		Hooks:  NewTraceHooks(o, nil),
+	}
 }
 
 // NewTraceProxyWithFilter generates a proxy that logs queries.
 func NewTraceProxyWithFilter(d driver.Driver, o Outputter, f Filter) *Proxy {
-	if f == nil {
-		f = PackageFilter{
-			"database/sql":                       struct{}{},
-			"github.com/shogo82148/txmanager":    struct{}{},
-			"github.com/shogo82148/go-sql-proxy": struct{}{},
-		}
-	}
-
 	return &Proxy{
 		Driver: d,
-		Hooks: &Hooks{
-			PreOpen: func(_ string) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostOpen: func(ctx interface{}, _ driver.Conn) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf(
-						"Open (%s)",
-						time.Since(ctx.(time.Time)),
-					),
-				)
-				return nil
-			},
-			PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Result) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf(
-						"Exec: %s; args = %v (%s)",
-						stmt.QueryString,
-						args,
-						time.Since(ctx.(time.Time)),
-					),
-				)
-				return nil
-			},
-			PreQuery: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostQuery: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Rows) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf(
-						"Query: %s; args = %v (%s)",
-						stmt.QueryString,
-						args,
-						time.Since(ctx.(time.Time)),
-					),
-				)
-				return nil
-			},
-			PreBegin: func(_ *Conn) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostBegin: func(ctx interface{}, _ *Conn) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf("Begin (%s)", time.Since(ctx.(time.Time))),
-				)
-				return nil
-			},
-			PreCommit: func(_ *Tx) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostCommit: func(ctx interface{}, _ *Tx) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf("Commit (%s)", time.Since(ctx.(time.Time))),
-				)
-				return nil
-			},
-			PreRollback: func(_ *Tx) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostRollback: func(ctx interface{}, _ *Tx) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf("Rollback (%s)", time.Since(ctx.(time.Time))),
-				)
-				return nil
-			},
+		Hooks:  NewTraceHooks(o, f),
+	}
+}
+
+func NewTraceHooks(o Outputter, f Filter) *HooksContext {
+	if f == nil {
+		f = DefaultPackageFilter
+	}
+	return &HooksContext{
+		PreOpen: func(_ context.Context, _ string) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostOpen: func(_ context.Context, ctx interface{}, _ driver.Conn, _ error) error {
+			o.Output(
+				findCaller(f),
+				fmt.Sprintf(
+					"Open (%s)",
+					time.Since(ctx.(time.Time)),
+				),
+			)
+			return nil
+		},
+		PreExec: func(_ context.Context, _ *Stmt, _ []driver.NamedValue) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostExec: func(_ context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, _ driver.Result, _ error) error {
+			o.Output(
+				findCaller(f),
+				fmt.Sprintf(
+					"Exec: %s; args = [%s] (%s)",
+					stmt.QueryString,
+					namedValuesToString(args),
+					time.Since(ctx.(time.Time)),
+				),
+			)
+			return nil
+		},
+		PreQuery: func(_ context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostQuery: func(_ context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, _ driver.Rows, _ error) error {
+			o.Output(
+				findCaller(f),
+				fmt.Sprintf(
+					"Query: %s; args = [%s] (%s)",
+					stmt.QueryString,
+					namedValuesToString(args),
+					time.Since(ctx.(time.Time)),
+				),
+			)
+			return nil
+		},
+		PreBegin: func(_ context.Context, _ *Conn) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostBegin: func(_ context.Context, ctx interface{}, _ *Conn, _ error) error {
+			o.Output(
+				findCaller(f),
+				fmt.Sprintf("Begin (%s)", time.Since(ctx.(time.Time))),
+			)
+			return nil
+		},
+		PreCommit: func(_ context.Context, _ *Tx) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostCommit: func(_ context.Context, ctx interface{}, _ *Tx, _ error) error {
+			o.Output(
+				findCaller(f),
+				fmt.Sprintf("Commit (%s)", time.Since(ctx.(time.Time))),
+			)
+			return nil
+		},
+		PreRollback: func(_ context.Context, _ *Tx) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostRollback: func(_ context.Context, ctx interface{}, _ *Tx, _ error) error {
+			o.Output(
+				findCaller(f),
+				fmt.Sprintf("Rollback (%s)", time.Since(ctx.(time.Time))),
+			)
+			return nil
 		},
 	}
+}
+
+func namedValuesToString(args []driver.NamedValue) string {
+	buf := &bytes.Buffer{}
+	for _, arg := range args {
+		if len(arg.Name) > 0 {
+			fmt.Fprintf(buf, "%s:%#v, ", arg.Name, arg.Value)
+		} else {
+			fmt.Fprintf(buf, "%#v, ", arg.Value)
+		}
+	}
+	b := buf.Bytes()
+	if len(b) < 2 {
+		return ""
+	}
+	str := string(b[:len(b)-2]) // ignore last ','
+	return str
 }
