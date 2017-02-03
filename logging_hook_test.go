@@ -21,6 +21,27 @@ func newLoggingHook(w io.Writer) *loggingHook {
 	}
 }
 
+func (h *loggingHook) prePing(c context.Context, conn *Conn) (interface{}, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PrePing]")
+	return nil, nil
+}
+
+func (h *loggingHook) ping(c context.Context, ctx interface{}, conn *Conn) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[Ping]")
+	return nil
+}
+
+func (h *loggingHook) postPing(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PostPing]")
+	return nil
+}
+
 func (h *loggingHook) preOpen(c context.Context, name string) (interface{}, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -29,11 +50,15 @@ func (h *loggingHook) preOpen(c context.Context, name string) (interface{}, erro
 }
 
 func (h *loggingHook) open(c context.Context, ctx interface{}, conn driver.Conn) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[Open]")
 	return nil
 }
 
 func (h *loggingHook) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostOpen]")
 	return nil
 }

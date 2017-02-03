@@ -18,6 +18,9 @@ type Proxy struct {
 // hooks is callback functions for the proxy.
 // it is private because it doesn't guarantee backward compatibility.
 type hooks interface {
+	prePing(c context.Context, conn *Conn) (interface{}, error)
+	ping(c context.Context, ctx interface{}, conn *Conn) error
+	postPing(c context.Context, ctx interface{}, conn *Conn, err error) error
 	preOpen(c context.Context, name string) (interface{}, error)
 	open(c context.Context, ctx interface{}, conn driver.Conn) error
 	postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error
@@ -40,6 +43,38 @@ type hooks interface {
 
 // HooksContext is callback functions with context.Context for the proxy.
 type HooksContext struct {
+	// PrePing is a callback that gets called prior to calling
+	// `Conn.Ping`, and is ALWAYS called. If this callback returns an
+	// error, the underlying driver's `Conn.Ping` and `Hooks.Ping` methods
+	// are not called.
+	//
+	// The first return value is passed to both `Hooks.Ping` and
+	// `Hooks.PostPing` callbacks. You may specify anything you want.
+	// Return nil if you do not need to use it.
+	//
+	// The second return value is indicates the error found while
+	// executing this hook. If this callback returns an error,
+	// the underlying driver's `Conn.Ping` method and `Hooks.Ping`
+	// methods are not called.
+	PrePing func(c context.Context, conn *Conn) (interface{}, error)
+
+	// Ping is called after the underlying driver's `Conn.Exec` method
+	// returns without any errors.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PrePing` method, and may be nil.
+	//
+	// If this callback returns an error, then the error from this
+	// callback is returned by the `Cpnn.Ping` method.
+	Ping func(c context.Context, ctx interface{}, conn *Conn) error
+
+	// PostPing is a callback that gets called at the end of
+	// the call to `Conn.Ping`. It is ALWAYS called.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PrePing` method, and may be nil.
+	PostPing func(c context.Context, ctx interface{}, conn *Conn, err error) error
+
 	// PreOpen is a callback that gets called before any
 	// attempt to open the sql connection is made, and is ALWAYS
 	// called.
@@ -230,6 +265,27 @@ type HooksContext struct {
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreRollback` method, and may be nil.
 	PostRollback func(c context.Context, ctx interface{}, tx *Tx, err error) error
+}
+
+func (h *HooksContext) prePing(c context.Context, conn *Conn) (interface{}, error) {
+	if h == nil || h.PrePing == nil {
+		return nil, nil
+	}
+	return h.PrePing(c, conn)
+}
+
+func (h *HooksContext) ping(c context.Context, ctx interface{}, conn *Conn) error {
+	if h == nil || h.Ping == nil {
+		return nil
+	}
+	return h.Ping(c, ctx, conn)
+}
+
+func (h *HooksContext) postPing(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	if h == nil || h.PostPing == nil {
+		return nil
+	}
+	return h.PostPing(c, ctx, conn, err)
 }
 
 func (h *HooksContext) preOpen(c context.Context, name string) (interface{}, error) {
@@ -570,6 +626,18 @@ func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
 		}
 	}
 	return ret
+}
+
+func (h *Hooks) prePing(c context.Context, conn *Conn) (interface{}, error) {
+	return nil, nil
+}
+
+func (h *Hooks) ping(c context.Context, ctx interface{}, conn *Conn) error {
+	return nil
+}
+
+func (h *Hooks) postPing(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return nil
 }
 
 func (h *Hooks) preOpen(c context.Context, name string) (interface{}, error) {

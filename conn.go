@@ -13,6 +13,29 @@ type Conn struct {
 	Proxy *Proxy
 }
 
+// Ping verifies a connection to the database is still alive.
+// It will trigger PrePing, Ping, PostPing hooks.
+//
+// If the original connection does not satisfy "database/sql/driver".Pinger, it does nothing.
+func (conn *Conn) Ping(c context.Context) error {
+	var err error
+	var ctx interface{}
+	defer func() { conn.Proxy.Hooks.postPing(c, ctx, conn, err) }()
+	if ctx, err = conn.Proxy.Hooks.prePing(c, conn); err != nil {
+		return err
+	}
+
+	if p, ok := conn.Conn.(driver.Pinger); ok {
+		err = p.Ping(c)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = conn.Proxy.Hooks.ping(c, ctx, conn)
+	return err
+}
+
 // Prepare returns a prepared statement which is wrapped by Stmt.
 // NOT SUPPORTED: use PrepareContext instead
 func (conn *Conn) Prepare(query string) (driver.Stmt, error) {

@@ -257,6 +257,16 @@ func TestFakeDB(t *testing.T) {
 		// the target driver is minimum implementation
 		{
 			opt: &fakeConnOption{
+				Name: "pingAll",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
+			f: func(db *sql.DB) error {
+				return db.Ping()
+			},
+		},
+		{
+			opt: &fakeConnOption{
 				Name: "execAll",
 			},
 			hooksLog: "[PreOpen]\n" +
@@ -419,6 +429,19 @@ func TestFakeDB(t *testing.T) {
 				}
 				_, err = stmt.Exec(123456789)
 				return err
+			},
+		},
+
+		// the Conn of the target driver supports the context.
+		{
+			opt: &fakeConnOption{
+				Name:     "pingAll-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
+			f: func(db *sql.DB) error {
+				return db.Ping()
 			},
 		},
 	}
