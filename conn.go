@@ -47,7 +47,21 @@ func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
 
 // PrepareContext returns a prepared statement which is wrapped by Stmt.
 func (conn *Conn) PrepareContext(c context.Context, query string) (driver.Stmt, error) {
-	stmt, err := conn.Conn.Prepare(query) // TODO: call PrepareContext if conn.Conn satisfies ConnPrepareContext
+	var stmt driver.Stmt
+	var err error
+	if connCtx, ok := conn.Conn.(driver.ConnPrepareContext); ok {
+		stmt, err = connCtx.PrepareContext(c, query)
+	} else {
+		stmt, err = conn.Conn.Prepare(query)
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				stmt.Close()
+				return nil, c.Err()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

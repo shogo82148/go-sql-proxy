@@ -319,6 +319,19 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
+				Name: "prepare",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
+				if err != nil {
+					return nil
+				}
+				return stmt.Close()
+			},
+		},
+		{
+			opt: &fakeConnOption{
 				Name: "commit",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
@@ -455,6 +468,7 @@ func TestFakeDB(t *testing.T) {
 				if err != nil {
 					return err
 				}
+				defer stmt.Close()
 				_, err = stmt.Exec(123456789)
 				return err
 			},
@@ -470,6 +484,20 @@ func TestFakeDB(t *testing.T) {
 				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
 			f: func(db *sql.DB) error {
 				return db.Ping()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "prepare-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
+				if err != nil {
+					return nil
+				}
+				return stmt.Close()
 			},
 		},
 		{
