@@ -254,6 +254,7 @@ func TestFakeDB(t *testing.T) {
 		hooksLog string
 		f        func(db *sql.DB) error
 	}{
+		// the target driver is minimum implementation
 		{
 			opt: &fakeConnOption{
 				Name: "execAll",
@@ -344,6 +345,64 @@ func TestFakeDB(t *testing.T) {
 					return err
 				}
 				return tx.Rollback()
+			},
+		},
+
+		// the Conn of the target driver implements Execer and Queryer
+		{
+			opt: &fakeConnOption{
+				Name:     "execAll-ext",
+				ConnType: "fakeConnExt",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "execError-ext",
+				ConnType: "fakeConnExt",
+				FailExec: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				if err == nil {
+					return errors.New("excepted error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "queryAll-ext",
+				ConnType: "fakeConnExt",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:      "queryError-ext",
+				ConnType:  "fakeConnExt",
+				FailQuery: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				if err == nil {
+					return errors.New("expected error, but not")
+				}
+				return nil
 			},
 		},
 	}

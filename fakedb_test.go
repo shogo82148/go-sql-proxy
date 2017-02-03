@@ -16,6 +16,9 @@ type fakeConnOption struct {
 	// name is the name of database
 	Name string
 
+	// ConnType enhances the driver implementation
+	ConnType string
+
 	// call of Exec will fail if failExec is true
 	FailExec bool
 
@@ -33,22 +36,39 @@ type fakeDB struct {
 	log *bytes.Buffer
 }
 
+// fakeConn is minimum implementation of driver.Conn
 type fakeConn struct {
 	db  *fakeDB
 	opt *fakeConnOption
 }
+
+// fakeConnExt implements Execer and Queryer
+type fakeConnExt fakeConn
 
 type fakeTx struct {
 	db  *fakeDB
 	opt *fakeConnOption
 }
 
+// fakeStmt is minimum implementation of driver.Stmt
 type fakeStmt struct {
 	db  *fakeDB
 	opt *fakeConnOption
 }
 
+// fakeStmtExt implements ColumnConverter
+type fakeStmtExt fakeStmt
+
 var fdriver = &fakeDriver{}
+var _ driver.Driver = &fakeDriver{}
+var _ driver.Conn = &fakeConn{}
+var _ driver.Conn = &fakeConnExt{}
+var _ driver.Execer = &fakeConnExt{}
+var _ driver.Queryer = &fakeConnExt{}
+var _ driver.Tx = &fakeTx{}
+var _ driver.Stmt = &fakeStmt{}
+var _ driver.Stmt = &fakeStmtExt{}
+var _ driver.ColumnConverter = &fakeStmtExt{}
 
 func init() {
 	sql.Register("fakedb", fdriver)
@@ -74,10 +94,24 @@ func (d *fakeDriver) Open(name string) (driver.Conn, error) {
 		}
 		d.dbs[name] = db
 	}
-	return &fakeConn{
-		db:  db,
-		opt: &opt,
-	}, nil
+
+	var conn driver.Conn
+	switch opt.ConnType {
+	case "", "fakeConn":
+		conn = &fakeConn{
+			db:  db,
+			opt: &opt,
+		}
+	case "fakeConnExt":
+		conn = &fakeConnExt{
+			db:  db,
+			opt: &opt,
+		}
+	default:
+		return nil, errors.New("known ConnType")
+	}
+
+	return conn, nil
 }
 
 func (d *fakeDriver) DB(name string) *fakeDB {
@@ -120,6 +154,44 @@ func (c *fakeConn) Begin() (driver.Tx, error) {
 	}, nil
 }
 
+func (c *fakeConnExt) Prepare(query string) (driver.Stmt, error) {
+	c.db.Log("[Conn.Prepare]", query)
+	return &fakeStmtExt{
+		db:  c.db,
+		opt: c.opt,
+	}, nil
+}
+
+func (c *fakeConnExt) Close() error {
+	return nil
+}
+
+func (c *fakeConnExt) Begin() (driver.Tx, error) {
+	c.db.Log("[Conn.Begin]")
+	return &fakeTx{
+		db:  c.db,
+		opt: c.opt,
+	}, nil
+}
+
+func (c *fakeConnExt) Exec(query string, args []driver.Value) (driver.Result, error) {
+	c.db.Log("[Conn.Exec]", query, convertValuesToString(args))
+	if c.opt.FailExec {
+		c.db.Log("[Conn.Exec]", "ERROR!")
+		return nil, errors.New("Exec failed")
+	}
+	return nil, nil
+}
+
+func (c *fakeConnExt) Query(query string, args []driver.Value) (driver.Rows, error) {
+	c.db.Log("[Conn.Prepare]", query, convertValuesToString(args))
+	if c.opt.FailQuery {
+		c.db.Log("[Conn.Query]", "ERROR!")
+		return nil, errors.New("Query failed")
+	}
+	return nil, nil
+}
+
 func (tx *fakeTx) Commit() error {
 	tx.db.Log("[Tx.Commit]")
 	return nil
@@ -155,6 +227,28 @@ func (stmt *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 		return nil, errors.New("Query failed")
 	}
 	return nil, nil
+}
+
+func (stmt *fakeStmtExt) Close() error {
+	stmt.db.Log("[Stmt.Close]")
+	return nil
+}
+
+func (stmt *fakeStmtExt) NumInput() int {
+	return -1 // fakeDriver doesn't know its number of placeholders
+}
+
+func (stmt *fakeStmtExt) Exec(args []driver.Value) (driver.Result, error) {
+	return (*fakeStmt)(stmt).Exec(args)
+}
+
+func (stmt *fakeStmtExt) Query(args []driver.Value) (driver.Rows, error) {
+	return (*fakeStmt)(stmt).Query(args)
+}
+
+func (stmt *fakeStmtExt) ColumnConverter(idx int) driver.ValueConverter {
+	stmt.db.Log("[Stmt.ColumnConverter]", idx)
+	return driver.DefaultParameterConverter
 }
 
 func convertValuesToString(args []driver.Value) string {
