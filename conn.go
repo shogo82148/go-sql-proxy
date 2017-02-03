@@ -226,12 +226,25 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 		return nil, err
 	}
 
-	rows, err = queryer.Query(query, namedValuesToValues(args)) // TODO: call QueryContext if conn.Conn satisfies ConnQueryContext
+	if queryerCtx, ok := conn.Conn.(driver.QueryerContext); ok {
+		rows, err = queryerCtx.QueryContext(c, query, args)
+	} else {
+		rows, err = queryer.Query(query, namedValuesToValues(args))
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				rows.Close()
+				return nil, c.Err()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	if err = stmt.Proxy.Hooks.query(c, ctx, stmt, args, rows); err != nil {
+		rows.Close()
 		return nil, err
 	}
 

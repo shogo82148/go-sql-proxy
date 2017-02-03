@@ -612,6 +612,7 @@ type Hooks struct {
 func namedValuesToValues(args []driver.NamedValue) []driver.Value {
 	ret := make([]driver.Value, len(args))
 	for _, arg := range args {
+		// TODO: Check args.Name is empty because the original driver doesn't support it.
 		ret[arg.Ordinal-1] = arg.Value
 	}
 	return ret

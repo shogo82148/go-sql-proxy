@@ -500,6 +500,18 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
+				Name:     "queryAll-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
 				Name:     "prepare-ctx",
 				ConnType: "fakeConnCtx",
 			},
