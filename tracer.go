@@ -136,17 +136,22 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreExec: func(_ context.Context, _ *Stmt, _ []driver.NamedValue) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostExec: func(_ context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, _ driver.Result, _ error) error {
+		PostExec: func(_ context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, _ driver.Result, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
+			strErr := ""
+			if err != nil {
+				strErr = fmt.Sprintf("; err = %#v", err.Error())
+			}
 			o.Output(
 				findCaller(f),
 				fmt.Sprintf(
-					"Exec: %s; args = [%s] (%s)",
+					"Exec: %s; args = [%s]%s (%s)",
 					stmt.QueryString,
 					namedValuesToString(args),
+					strErr,
 					d,
 				),
 			)
@@ -155,17 +160,22 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreQuery: func(_ context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostQuery: func(_ context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, _ driver.Rows, _ error) error {
+		PostQuery: func(_ context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, _ driver.Rows, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
+			strErr := ""
+			if err != nil {
+				strErr = fmt.Sprintf("; err = %#v", err.Error())
+			}
 			o.Output(
 				findCaller(f),
 				fmt.Sprintf(
-					"Query: %s; args = [%s] (%s)",
+					"Query: %s; args = [%s]%s (%s)",
 					stmt.QueryString,
 					namedValuesToString(args),
+					strErr,
 					d,
 				),
 			)
@@ -174,42 +184,54 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreBegin: func(_ context.Context, _ *Conn) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostBegin: func(_ context.Context, ctx interface{}, _ *Conn, _ error) error {
+		PostBegin: func(_ context.Context, ctx interface{}, _ *Conn, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
+			strErr := ""
+			if err != nil {
+				strErr = fmt.Sprintf("; err = %#v", err.Error())
+			}
 			o.Output(
 				findCaller(f),
-				fmt.Sprintf("Begin (%s)", d),
+				fmt.Sprintf("Begin%s (%s)", strErr, d),
 			)
 			return nil
 		},
 		PreCommit: func(_ context.Context, _ *Tx) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostCommit: func(_ context.Context, ctx interface{}, _ *Tx, _ error) error {
+		PostCommit: func(_ context.Context, ctx interface{}, _ *Tx, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
+			strErr := ""
+			if err != nil {
+				strErr = fmt.Sprintf("; err = %#v", err.Error())
+			}
 			o.Output(
 				findCaller(f),
-				fmt.Sprintf("Commit (%s)", d),
+				fmt.Sprintf("Commit%s (%s)", strErr, d),
 			)
 			return nil
 		},
 		PreRollback: func(_ context.Context, _ *Tx) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostRollback: func(_ context.Context, ctx interface{}, _ *Tx, _ error) error {
+		PostRollback: func(_ context.Context, ctx interface{}, _ *Tx, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
+			strErr := ""
+			if err != nil {
+				strErr = fmt.Sprintf("; err = %#v", err.Error())
+			}
 			o.Output(
 				findCaller(f),
-				fmt.Sprintf("Rollback (%s)", d),
+				fmt.Sprintf("Rollback%s (%s)", strErr, d),
 			)
 			return nil
 		},

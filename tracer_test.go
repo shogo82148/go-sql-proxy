@@ -48,6 +48,11 @@ func TestTraceProxy(t *testing.T) {
 		t.Errorf("got %d\nwant 1", id)
 	}
 
+	_, err = dbm.Exec("ILLEGAL SQL")
+	if err == nil {
+		t.Error("got no error, want error")
+	}
+
 	timeComponent := `\(\d+(?:\.\d+)?[^\)]+\)`
 	expected := []*regexp.Regexp{
 		// Fake time compinent with (\d+\.\d+[^\)]+)
@@ -57,12 +62,14 @@ func TestTraceProxy(t *testing.T) {
 		regexp.MustCompile(`tracer_test.go:35: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
 		regexp.MustCompile(`tracer_test.go:37: Commit ` + timeComponent),
 		regexp.MustCompile(`tracer_test.go:42: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:51: Exec: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" ` + timeComponent),
 	}
 
 	scanner := bufio.NewScanner(buf)
 	i := 0
 	for scanner.Scan() {
 		line := scanner.Text()
+		t.Log(line)
 		if i >= len(expected) {
 			t.Errorf("Got more lines than expected (%s)", line)
 			break
