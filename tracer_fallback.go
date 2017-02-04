@@ -5,6 +5,7 @@ package proxy
 import (
 	"database/sql/driver"
 	"fmt"
+	"log"
 	"runtime"
 	"strings"
 	"time"
@@ -63,6 +64,13 @@ func findCaller(f Filter) int {
 		}
 	}
 	return 0
+}
+
+type logger struct{}
+
+// Output outputs the log by log package.
+func (logger) Output(calldepth int, s string) error {
+	return log.Output(calldepth, s)
 }
 
 // NewTraceProxy generates a proxy that logs queries.
