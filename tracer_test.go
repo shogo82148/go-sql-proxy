@@ -13,6 +13,8 @@ import (
 	"github.com/shogo82148/txmanager"
 )
 
+var illegalSQLError = `tracer_test.go:53: Exec: ILLEGAL SQL; args = \[\] `
+
 func TestTraceProxy(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := log.New(buf, "", log.Lshortfile)
@@ -56,13 +58,13 @@ func TestTraceProxy(t *testing.T) {
 	timeComponent := `\(\d+(?:\.\d+)?[^\)]+\)`
 	expected := []*regexp.Regexp{
 		// Fake time compinent with (\d+\.\d+[^\)]+)
-		regexp.MustCompile(`tracer_test.go:28: Open ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:28: Exec: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:37: Begin ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:35: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:37: Commit ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:42: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:51: Exec: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:30: Open ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:30: Exec: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:39: Begin ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:37: Exec: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:39: Commit ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:44: Query: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
+		regexp.MustCompile(illegalSQLError + timeComponent),
 	}
 
 	scanner := bufio.NewScanner(buf)
