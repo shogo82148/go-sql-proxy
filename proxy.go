@@ -962,22 +962,23 @@ func (h multipleHooks) postRollback(c context.Context, ctx interface{}, tx *Tx, 
 // NewProxy creates new Proxy driver.
 // DEPRECATED: You should use NewProxyContext instead.
 func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
-	switch len(hs) {
-	case 0:
+	switch {
+	case len(hs) == 0:
 		return &Proxy{
 			Driver: driver,
-			hooks:  (*HooksContext)(nil),
 		}
-	case 1:
+	case len(hs) == 1 && hs[0] != nil:
 		return &Proxy{
 			Driver: driver,
 			hooks:  hs[0],
 		}
 	}
 
-	hooksSlice := make([]hooks, len(hs))
-	for i, hk := range hs {
-		hooksSlice[i] = hk
+	hooksSlice := make([]hooks, 0, len(hs))
+	for _, hk := range hs {
+		if hk != nil {
+			hooksSlice = append(hooksSlice, hk)
+		}
 	}
 	return &Proxy{
 		Driver: driver,
@@ -987,22 +988,23 @@ func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
 
 // NewProxy creates new Proxy driver.
 func NewProxyContext(driver driver.Driver, hs ...*HooksContext) *Proxy {
-	switch len(hs) {
-	case 0:
+	switch {
+	case len(hs) == 0:
 		return &Proxy{
 			Driver: driver,
-			hooks:  (*HooksContext)(nil),
 		}
-	case 1:
+	case len(hs) == 1 && hs[0] != nil:
 		return &Proxy{
 			Driver: driver,
 			hooks:  hs[0],
 		}
 	}
 
-	hooksSlice := make([]hooks, len(hs))
-	for i, hk := range hs {
-		hooksSlice[i] = hk
+	hooksSlice := make([]hooks, 0, len(hs))
+	for _, hk := range hs {
+		if hk != nil {
+			hooksSlice = append(hooksSlice, hk)
+		}
 	}
 	return &Proxy{
 		Driver: driver,
@@ -1030,6 +1032,10 @@ func WithHooks(ctx context.Context, hs ...*HooksContext) context.Context {
 
 func (p *Proxy) getHooks(ctx context.Context) hooks {
 	if h, ok := ctx.Value(contextHooksKey{}).(hooks); ok {
+		// Make the caller nil check easy.
+		if h == (*Hooks)(nil) || h == (*HooksContext)(nil) {
+			return nil
+		}
 		return h
 	}
 	return p.hooks

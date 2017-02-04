@@ -24,9 +24,12 @@ func (conn *Conn) Ping(c context.Context) error {
 	var err error
 	var ctx interface{}
 	hooks := conn.Proxy.getHooks(c)
-	defer func() { hooks.postPing(c, ctx, conn, err) }()
-	if ctx, err = hooks.prePing(c, conn); err != nil {
-		return err
+
+	if hooks != nil {
+		defer func() { hooks.postPing(c, ctx, conn, err) }()
+		if ctx, err = hooks.prePing(c, conn); err != nil {
+			return err
+		}
 	}
 
 	if p, ok := conn.Conn.(driver.Pinger); ok {
@@ -36,7 +39,9 @@ func (conn *Conn) Ping(c context.Context) error {
 		}
 	}
 
-	err = hooks.ping(c, ctx, conn)
+	if hooks != nil {
+		err = hooks.ping(c, ctx, conn)
+	}
 	return err
 }
 
@@ -93,9 +98,11 @@ func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, 
 	var ctx interface{}
 	var tx driver.Tx
 	hooks := conn.Proxy.getHooks(c)
-	defer func() { hooks.postBegin(c, ctx, conn, err) }()
-	if ctx, err = hooks.preBegin(c, conn); err != nil {
-		return nil, err
+	if hooks != nil {
+		defer func() { hooks.postBegin(c, ctx, conn, err) }()
+		if ctx, err = hooks.preBegin(c, conn); err != nil {
+			return nil, err
+		}
 	}
 
 	// call the original method.
@@ -127,9 +134,11 @@ func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, 
 		return nil, err
 	}
 
-	if err = hooks.begin(c, ctx, conn); err != nil {
-		tx.Rollback()
-		return nil, err
+	if hooks != nil {
+		if err = hooks.begin(c, ctx, conn); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
 	}
 
 	return &Tx{
@@ -158,21 +167,24 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		return nil, driver.ErrSkip
 	}
 
-	stmt := &Stmt{
-		QueryString: query,
-		Proxy:       conn.Proxy,
-	}
-
+	// set the hooks.
+	var stmt *Stmt
 	var ctx interface{}
 	var err error
 	var result driver.Result
 	hooks := conn.Proxy.getHooks(c)
-
-	defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
-	if ctx, err = hooks.preExec(c, stmt, args); err != nil {
-		return nil, err
+	if hooks != nil {
+		stmt = &Stmt{
+			QueryString: query,
+			Proxy:       conn.Proxy,
+		}
+		defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
+		if ctx, err = hooks.preExec(c, stmt, args); err != nil {
+			return nil, err
+		}
 	}
 
+	// call the original method.
 	if execerCtx, ok := execer.(driver.ExecerContext); ok {
 		result, err = execerCtx.ExecContext(c, query, args)
 	} else {
@@ -194,8 +206,10 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		return nil, err
 	}
 
-	if err = hooks.exec(c, ctx, stmt, args, result); err != nil {
-		return nil, err
+	if hooks != nil {
+		if err = hooks.exec(c, ctx, stmt, args, result); err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil
@@ -220,21 +234,23 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 		return nil, driver.ErrSkip
 	}
 
-	stmt := &Stmt{
-		QueryString: query,
-		Proxy:       conn.Proxy,
-	}
-
+	var stmt *Stmt
 	var ctx interface{}
 	var err error
 	var rows driver.Rows
 	hooks := conn.Proxy.getHooks(c)
-
-	defer func() { hooks.postQuery(c, ctx, stmt, args, rows, err) }()
-	if ctx, err = hooks.preQuery(c, stmt, args); err != nil {
-		return nil, err
+	if hooks != nil {
+		stmt := &Stmt{
+			QueryString: query,
+			Proxy:       conn.Proxy,
+		}
+		defer func() { hooks.postQuery(c, ctx, stmt, args, rows, err) }()
+		if ctx, err = hooks.preQuery(c, stmt, args); err != nil {
+			return nil, err
+		}
 	}
 
+	// call the original method.
 	if queryerCtx, ok := conn.Conn.(driver.QueryerContext); ok {
 		rows, err = queryerCtx.QueryContext(c, query, args)
 	} else {
@@ -257,9 +273,11 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 		return nil, err
 	}
 
-	if err = hooks.query(c, ctx, stmt, args, rows); err != nil {
-		rows.Close()
-		return nil, err
+	if hooks != nil {
+		if err = hooks.query(c, ctx, stmt, args, rows); err != nil {
+			rows.Close()
+			return nil, err
+		}
 	}
 
 	return rows, nil

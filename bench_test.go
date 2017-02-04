@@ -42,10 +42,8 @@ func BenchmarkDirectly(b *testing.B) {
 func BenchmarkNilHook(b *testing.B) {
 	ctx := context.Background()
 	conn := &Conn{
-		Conn: nullConn{},
-		Proxy: &Proxy{
-			hooks: (*HooksContext)(nil),
-		},
+		Conn:  nullConn{},
+		Proxy: &Proxy{},
 	}
 	args := []driver.NamedValue{
 		{
@@ -63,10 +61,8 @@ func BenchmarkNilHook(b *testing.B) {
 func BenchmarkNilHookCtx(b *testing.B) {
 	ctx := context.Background()
 	conn := &Conn{
-		Conn: nullConnCtx{},
-		Proxy: &Proxy{
-			hooks: (*HooksContext)(nil),
-		},
+		Conn:  nullConnCtx{},
+		Proxy: &Proxy{},
 	}
 	args := []driver.NamedValue{
 		{

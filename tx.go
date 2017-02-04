@@ -20,17 +20,21 @@ func (tx *Tx) Commit() error {
 	var err error
 	var ctx interface{}
 	hooks := tx.Proxy.getHooks(tx.ctx)
-
-	defer func() { hooks.postCommit(tx.ctx, ctx, tx, err) }()
-	if ctx, err = hooks.preCommit(tx.ctx, tx); err != nil {
-		return err
+	if hooks != nil {
+		defer func() { hooks.postCommit(tx.ctx, ctx, tx, err) }()
+		if ctx, err = hooks.preCommit(tx.ctx, tx); err != nil {
+			return err
+		}
 	}
 
 	if err = tx.Tx.Commit(); err != nil {
 		return err
 	}
 
-	return hooks.commit(tx.ctx, ctx, tx)
+	if hooks != nil {
+		return hooks.commit(tx.ctx, ctx, tx)
+	}
+	return nil
 }
 
 // Rollback rollbacks the transaction.
@@ -39,15 +43,19 @@ func (tx *Tx) Rollback() error {
 	var err error
 	var ctx interface{}
 	hooks := tx.Proxy.getHooks(tx.ctx)
-
-	defer func() { hooks.postRollback(tx.ctx, ctx, tx, err) }()
-	if ctx, err = hooks.preRollback(tx.ctx, tx); err != nil {
-		return err
+	if hooks != nil {
+		defer func() { hooks.postRollback(tx.ctx, ctx, tx, err) }()
+		if ctx, err = hooks.preRollback(tx.ctx, tx); err != nil {
+			return err
+		}
 	}
 
 	if err = tx.Tx.Rollback(); err != nil {
 		return err
 	}
 
-	return hooks.rollback(tx.ctx, ctx, tx)
+	if hooks != nil {
+		return hooks.rollback(tx.ctx, ctx, tx)
+	}
+	return nil
 }
