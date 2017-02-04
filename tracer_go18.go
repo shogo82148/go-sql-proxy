@@ -72,8 +72,9 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			io.WriteString(buf, " (")
 			io.WriteString(buf, d.String())
 			io.WriteString(buf, ")")
-			o.Output(findCaller(f), buf.String())
+			s := buf.String()
 			pool.Put(buf)
+			o.Output(findCaller(f), s)
 			return nil
 		},
 		PreExec: func(_ context.Context, _ *Stmt, _ []driver.NamedValue) (interface{}, error) {
@@ -97,8 +98,9 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			io.WriteString(buf, " (")
 			io.WriteString(buf, d.String())
 			io.WriteString(buf, ")")
-			o.Output(findCaller(f), buf.String())
+			s := buf.String()
 			pool.Put(buf)
+			o.Output(findCaller(f), s)
 			return nil
 		},
 		PreQuery: func(_ context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
@@ -122,8 +124,9 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			io.WriteString(buf, " (")
 			io.WriteString(buf, d.String())
 			io.WriteString(buf, ")")
-			o.Output(findCaller(f), buf.String())
+			s := buf.String()
 			pool.Put(buf)
+			o.Output(findCaller(f), s)
 			return nil
 		},
 		PreBegin: func(_ context.Context, _ *Conn) (interface{}, error) {
@@ -143,8 +146,9 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			io.WriteString(buf, " (")
 			io.WriteString(buf, d.String())
 			io.WriteString(buf, ")")
-			o.Output(findCaller(f), buf.String())
+			s := buf.String()
 			pool.Put(buf)
+			o.Output(findCaller(f), s)
 			return nil
 		},
 		PreCommit: func(_ context.Context, _ *Tx) (interface{}, error) {
@@ -164,8 +168,9 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			io.WriteString(buf, " (")
 			io.WriteString(buf, d.String())
 			io.WriteString(buf, ")")
-			o.Output(findCaller(f), buf.String())
+			s := buf.String()
 			pool.Put(buf)
+			o.Output(findCaller(f), s)
 			return nil
 		},
 		PreRollback: func(_ context.Context, _ *Tx) (interface{}, error) {
@@ -185,8 +190,9 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			io.WriteString(buf, " (")
 			io.WriteString(buf, d.String())
 			io.WriteString(buf, ")")
-			o.Output(findCaller(f), buf.String())
+			s := buf.String()
 			pool.Put(buf)
+			o.Output(findCaller(f), s)
 			return nil
 		},
 	}
