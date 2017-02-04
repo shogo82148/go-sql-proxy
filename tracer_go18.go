@@ -7,6 +7,8 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"io"
+	"sync"
 	"time"
 )
 
@@ -47,19 +49,31 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 	if o == nil {
 		o = logger{}
 	}
+	pool := &sync.Pool{
+		New: func() interface{} {
+			return &bytes.Buffer{}
+		},
+	}
 	return &HooksContext{
 		PreOpen: func(_ context.Context, _ string) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostOpen: func(_ context.Context, ctx interface{}, _ driver.Conn, _ error) error {
+		PostOpen: func(_ context.Context, ctx interface{}, _ driver.Conn, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
-			o.Output(
-				findCaller(f),
-				fmt.Sprintf("Open (%s)", d),
-			)
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			io.WriteString(buf, "Open")
+			if err != nil {
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
+			}
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			o.Output(findCaller(f), buf.String())
+			pool.Put(buf)
 			return nil
 		},
 		PreExec: func(_ context.Context, _ *Stmt, _ []driver.NamedValue) (interface{}, error) {
@@ -70,20 +84,21 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			if d < opt.SlowQuery {
 				return nil
 			}
-			strErr := ""
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			io.WriteString(buf, "Exec: ")
+			io.WriteString(buf, stmt.QueryString)
+			io.WriteString(buf, "; args = [")
+			writeNamedValues(buf, args)
+			io.WriteString(buf, "]")
 			if err != nil {
-				strErr = fmt.Sprintf("; err = %#v", err.Error())
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
-			o.Output(
-				findCaller(f),
-				fmt.Sprintf(
-					"Exec: %s; args = [%s]%s (%s)",
-					stmt.QueryString,
-					namedValuesToString(args),
-					strErr,
-					d,
-				),
-			)
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			o.Output(findCaller(f), buf.String())
+			pool.Put(buf)
 			return nil
 		},
 		PreQuery: func(_ context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
@@ -94,20 +109,21 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			if d < opt.SlowQuery {
 				return nil
 			}
-			strErr := ""
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			io.WriteString(buf, "Query: ")
+			io.WriteString(buf, stmt.QueryString)
+			io.WriteString(buf, "; args = [")
+			writeNamedValues(buf, args)
+			io.WriteString(buf, "]")
 			if err != nil {
-				strErr = fmt.Sprintf("; err = %#v", err.Error())
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
-			o.Output(
-				findCaller(f),
-				fmt.Sprintf(
-					"Query: %s; args = [%s]%s (%s)",
-					stmt.QueryString,
-					namedValuesToString(args),
-					strErr,
-					d,
-				),
-			)
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			o.Output(findCaller(f), buf.String())
+			pool.Put(buf)
 			return nil
 		},
 		PreBegin: func(_ context.Context, _ *Conn) (interface{}, error) {
@@ -118,14 +134,17 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			if d < opt.SlowQuery {
 				return nil
 			}
-			strErr := ""
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			io.WriteString(buf, "Begin")
 			if err != nil {
-				strErr = fmt.Sprintf("; err = %#v", err.Error())
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
-			o.Output(
-				findCaller(f),
-				fmt.Sprintf("Begin%s (%s)", strErr, d),
-			)
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			o.Output(findCaller(f), buf.String())
+			pool.Put(buf)
 			return nil
 		},
 		PreCommit: func(_ context.Context, _ *Tx) (interface{}, error) {
@@ -136,14 +155,17 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			if d < opt.SlowQuery {
 				return nil
 			}
-			strErr := ""
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			io.WriteString(buf, "Commit")
 			if err != nil {
-				strErr = fmt.Sprintf("; err = %#v", err.Error())
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
-			o.Output(
-				findCaller(f),
-				fmt.Sprintf("Commit%s (%s)", strErr, d),
-			)
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			o.Output(findCaller(f), buf.String())
+			pool.Put(buf)
 			return nil
 		},
 		PreRollback: func(_ context.Context, _ *Tx) (interface{}, error) {
@@ -154,32 +176,31 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			if d < opt.SlowQuery {
 				return nil
 			}
-			strErr := ""
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			io.WriteString(buf, "Rollback")
 			if err != nil {
-				strErr = fmt.Sprintf("; err = %#v", err.Error())
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
-			o.Output(
-				findCaller(f),
-				fmt.Sprintf("Rollback%s (%s)", strErr, d),
-			)
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			o.Output(findCaller(f), buf.String())
+			pool.Put(buf)
 			return nil
 		},
 	}
 }
 
-func namedValuesToString(args []driver.NamedValue) string {
-	buf := &bytes.Buffer{}
-	for _, arg := range args {
-		if len(arg.Name) > 0 {
-			fmt.Fprintf(buf, "%s:%#v, ", arg.Name, arg.Value)
-		} else {
-			fmt.Fprintf(buf, "%#v, ", arg.Value)
+func writeNamedValues(w io.Writer, args []driver.NamedValue) {
+	for i, arg := range args {
+		if i != 0 {
+			io.WriteString(w, ", ")
 		}
+		if len(arg.Name) > 0 {
+			io.WriteString(w, arg.Name)
+			io.WriteString(w, ":")
+		}
+		fmt.Fprintf(w, "%#v", arg.Value)
 	}
-	b := buf.Bytes()
-	if len(b) < 2 {
-		return ""
-	}
-	str := string(b[:len(b)-2]) // ignore last ','
-	return str
 }
