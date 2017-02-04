@@ -3,7 +3,6 @@ package proxy
 import (
 	"log"
 	"runtime"
-	"strings"
 )
 
 // Outputter is what is used by the tracing proxy created via `NewTraceProxy`.
@@ -47,19 +46,16 @@ func findCaller(f Filter) int {
 		}
 
 		// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
-		parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
-		pl := len(parts)
-		packageName := ""
-		for j := pl - 1; j > 0; j-- { // find a type name
-			if parts[j][0] == '(' {
-				packageName = strings.Join(parts[0:j], ".")
+		name := runtime.FuncForPC(pc).Name()
+		dotIdx := 0
+		for j := len(name) - 1; j >= 0; j-- {
+			if name[j] == '.' {
+				dotIdx = j
+			} else if name[j] == '/' {
 				break
 			}
 		}
-		if packageName == "" {
-			packageName = strings.Join(parts[0:pl-1], ".")
-		}
-
+		packageName := name[:dotIdx]
 		if f.DoOutput(packageName) {
 			return i
 		}
