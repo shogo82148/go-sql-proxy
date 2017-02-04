@@ -32,6 +32,8 @@ func (nullLogger) Output(calldepth int, s string) error { return nil }
 func BenchmarkDirectly(b *testing.B) {
 	conn := nullConn{}
 	args := []driver.Value{int64(123456789)}
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		conn.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", args)
 	}
@@ -51,6 +53,8 @@ func BenchmarkNilHook(b *testing.B) {
 			Value:   int64(123456789),
 		},
 	}
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		conn.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", args)
 	}
@@ -70,6 +74,8 @@ func BenchmarkNilHookCtx(b *testing.B) {
 			Value:   int64(123456789),
 		},
 	}
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		conn.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", args)
 	}
@@ -91,6 +97,8 @@ func BenchmarkTracer(b *testing.B) {
 			Value:   int64(123456789),
 		},
 	}
+	b.ReportAllocs()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		conn.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", args)
 	}
