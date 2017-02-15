@@ -28,6 +28,7 @@ func (f PackageFilter) Ignore(packageName string) {
 	f[packageName] = struct{}{}
 }
 
+// DefaultPackageFilter ignores some database util package.
 var DefaultPackageFilter = PackageFilter{
 	"database/sql":                       struct{}{},
 	"github.com/shogo82148/txmanager":    struct{}{},

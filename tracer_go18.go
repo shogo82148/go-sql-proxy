@@ -15,9 +15,11 @@ import (
 // TracerOptions holds the tarcing option.
 type TracerOptions struct {
 	// Outputter is the output of the log.
+	// If is nil nil, log.Output is used.
 	Outputter Outputter
 
 	// Filter is used by the tracing proxy for skipping database libraries (e.g. O/R mapper).
+	// If it is nil, DefaultPackageFilter is used.
 	Filter Filter
 
 	// SlowQuery is a threshold duration to output into log.
