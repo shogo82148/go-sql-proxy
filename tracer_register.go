@@ -4,6 +4,7 @@ package proxy
 
 import (
 	"database/sql"
+	"log"
 	"strings"
 )
 
@@ -19,4 +20,11 @@ func RegisterTracer() {
 		defer db.Close()
 		sql.Register(driver+":trace", NewTraceProxy(db.Driver(), logger{}))
 	}
+}
+
+type logger struct{}
+
+// Output outputs the log by log package.
+func (logger) Output(calldepth int, s string) error {
+	return log.Output(calldepth, s)
 }

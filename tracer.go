@@ -1,9 +1,6 @@
 package proxy
 
-import (
-	"log"
-	"runtime"
-)
+import "runtime"
 
 // Outputter is what is used by the tracing proxy created via `NewTraceProxy`.
 // Anything that implements a `log.Logger` style `Output` method will satisfy
@@ -61,11 +58,4 @@ func findCaller(f Filter) int {
 		}
 	}
 	return 0
-}
-
-type logger struct{}
-
-// Output outputs the log by log package.
-func (logger) Output(calldepth int, s string) error {
-	return log.Output(calldepth, s)
 }
