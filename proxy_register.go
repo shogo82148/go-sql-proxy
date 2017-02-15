@@ -1,4 +1,4 @@
-// +build go1.5
+// +build go1.8
 
 package proxy
 
@@ -7,16 +7,17 @@ import (
 	"strings"
 )
 
-// RegisterTracer creates proxies that log queries from the sql drivers already registered,
+// RegisterProxy creates proxies that do not anything by default,
 // and registers the proxies as sql driver.
-// The proxies' names have suffix ":trace".
-func RegisterTracer() {
+// Use `proxy.WithHooks(ctx, hooks)` to hook query execution.
+// The proxies' names have suffix ":proxy".
+func RegisterProxy() {
 	for _, driver := range sql.Drivers() {
 		if strings.HasSuffix(driver, ":trace") || strings.HasSuffix(driver, ":proxy") {
 			continue
 		}
 		db, _ := sql.Open(driver, "")
 		defer db.Close()
-		sql.Register(driver+":trace", NewTraceProxy(db.Driver(), logger{}))
+		sql.Register(driver+":proxy", NewProxyContext(db.Driver()))
 	}
 }
