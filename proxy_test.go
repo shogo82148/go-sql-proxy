@@ -1,387 +1,742 @@
+// +build go1.8
+
 package proxy
 
 import (
+	"bytes"
+	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"reflect"
 	"testing"
-	"time"
-
-	"github.com/mattn/go-sqlite3"
-	"github.com/shogo82148/txmanager"
 )
 
-type proxyTest struct {
-	*testing.T
-	recorded []string
-	seq      chan int
+func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
+	c := context.Background()
+	if ctx2, err := h.preOpen(c, ""); ctx2 != ctx || err != nil {
+		t.Errorf("preOpen returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.open(c, ctx, nil); err != nil {
+		t.Error("open returns error: ", err)
+	}
+	if err := h.postOpen(c, ctx, nil, nil); err != nil {
+		t.Error("postOpen returns error: ", err)
+	}
+	if ctx2, err := h.preExec(c, nil, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preExec returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.exec(c, ctx, nil, nil, nil); err != nil {
+		t.Error("exec returns error: ", err)
+	}
+	if err := h.postExec(c, ctx, nil, nil, nil, nil); err != nil {
+		t.Error("postExec returns error: ", err)
+	}
+	if ctx2, err := h.preQuery(c, nil, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preQuery returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.query(c, ctx, nil, nil, nil); err != nil {
+		t.Error("query returns error: ", err)
+	}
+	if err := h.postQuery(c, ctx, nil, nil, nil, nil); err != nil {
+		t.Error("postQuery returns error: ", err)
+	}
+	if ctx2, err := h.preBegin(c, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preBegin returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.begin(c, ctx, nil); err != nil {
+		t.Error("begin returns error: ", err)
+	}
+	if err := h.postBegin(c, ctx, nil, nil); err != nil {
+		t.Error("postBegin returns error: ", err)
+	}
+	if ctx2, err := h.preCommit(c, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preCommit returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.commit(c, ctx, nil); err != nil {
+		t.Error("commit returns error: ", err)
+	}
+	if err := h.postCommit(c, ctx, nil, nil); err != nil {
+		t.Error("postCommit returns error: ", err)
+	}
+	if ctx2, err := h.preRollback(c, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preRollback returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.rollback(c, ctx, nil); err != nil {
+		t.Error("rollback returns error: ", err)
+	}
+	if err := h.postRollback(c, ctx, nil, nil); err != nil {
+		t.Error("postRollback returns error: ", err)
+	}
 }
 
-var tseq chan int
+func TestNilHooksContext(t *testing.T) {
+	// nil HooksContext will not panic and have no effec
+	testHooksInterface(t, (*HooksContext)(nil), nil)
+}
 
-func init() {
-	tseq = make(chan int)
-	go func() {
-		for i := 1; ; i++ {
-			tseq <- i
+func TestZeroHooksContext(t *testing.T) {
+	// zero HooksContext will not panic and have no effec
+	testHooksInterface(t, &HooksContext{}, nil)
+}
+
+func TestHooksContext(t *testing.T) {
+	dummy := 0
+	ctx0 := &dummy
+	checkCtx := func(name string, ctx interface{}) {
+		if ctx != ctx0 {
+			t.Errorf("unexpected ctx: got %v want %v in %s", ctx, ctx0, name)
 		}
-	}()
-}
-
-func newProxyTest(t *testing.T) *proxyTest {
-	return &proxyTest{T: t, seq: tseq}
-}
-
-func (t *proxyTest) record(in string) {
-	t.recorded = append(t.recorded, in)
-}
-
-func (t proxyTest) verify(expected []string) error {
-	if len(expected) != len(t.recorded) {
-		return fmt.Errorf("Number of steps do not match (%d != %d)", len(expected), len(t.recorded))
 	}
+	testHooksInterface(t, &HooksContext{
+		PreOpen: func(c context.Context, name string) (interface{}, error) {
+			return ctx0, nil
+		},
+		Open: func(c context.Context, ctx interface{}, conn driver.Conn) error {
+			checkCtx("Open", ctx)
+			return nil
+		},
+		PostOpen: func(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+			checkCtx("PostOpen", ctx)
+			return err
+		},
+		PreExec: func(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
+			return ctx0, nil
+		},
+		Exec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error {
+			checkCtx("Exec", ctx)
+			return nil
+		},
+		PostExec: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
+			checkCtx("PostExec", ctx)
+			return err
+		},
+		PreQuery: func(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
+			return ctx0, nil
+		},
+		Query: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows) error {
+			checkCtx("Query", ctx)
+			return nil
+		},
+		PostQuery: func(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
+			checkCtx("PostQuery", ctx)
+			return err
+		},
+		PreBegin: func(c context.Context, conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		Begin: func(c context.Context, ctx interface{}, conn *Conn) error {
+			checkCtx("Begin", ctx)
+			return nil
+		},
+		PostBegin: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostBegin", ctx)
+			return err
+		},
+		PreCommit: func(c context.Context, tx *Tx) (interface{}, error) {
+			return ctx0, nil
+		},
+		Commit: func(c context.Context, ctx interface{}, tx *Tx) error {
+			checkCtx("Commit", ctx)
+			return nil
+		},
+		PostCommit: func(c context.Context, ctx interface{}, tx *Tx, err error) error {
+			checkCtx("PostCommit", ctx)
+			return err
+		},
+		PreRollback: func(c context.Context, tx *Tx) (interface{}, error) {
+			return ctx0, nil
+		},
+		Rollback: func(c context.Context, ctx interface{}, tx *Tx) error {
+			checkCtx("Rollback", ctx)
+			return nil
+		},
+		PostRollback: func(c context.Context, ctx interface{}, tx *Tx, err error) error {
+			checkCtx("PostRollback", ctx)
+			return err
+		},
+	}, ctx0)
+}
 
-	for i := range expected {
-		if t.recorded[i] != expected[i] {
-			return fmt.Errorf("Expected '%s', got '%s' for step %d",
-				expected[i],
-				t.recorded[i],
-				i,
-			)
+func TestNilHooks(t *testing.T) {
+	// nil Hooks will not panic and have no effect
+	testHooksInterface(t, (*Hooks)(nil), nil)
+}
+
+func TestZeroHooks(t *testing.T) {
+	// zero Hooks will not panic and have no effect
+	testHooksInterface(t, &Hooks{}, nil)
+}
+
+func TestHooks(t *testing.T) {
+	dummy := 0
+	ctx0 := &dummy
+	checkCtx := func(name string, ctx interface{}) {
+		if ctx != ctx0 {
+			t.Errorf("unexpected ctx: got %v want %v in %s", ctx, ctx0, name)
 		}
 	}
-
-	return nil
-}
-
-func (t *proxyTest) testOpen(makeHooks func(*proxyTest) *Hooks, expected []string) {
-	driverName := fmt.Sprintf("sqlite-proxy-test-open-%d", <-t.seq)
-	t.recorded = []string(nil)
-	h := makeHooks(t)
-
-	sql.Register(driverName, NewProxy(&sqlite3.SQLiteDriver{}, h))
-
-	db, err := sql.Open(driverName, ":memory:")
-	if err != nil {
-		t.Fatalf("%s: Open failed: %v", driverName, err)
-	}
-	// The sql driver's Open() is not called until some sort of
-	// statement is executed.
-	db.Query("SELECT 1")
-	if err := t.verify(expected); err != nil {
-		t.Errorf("%s: %s", driverName, err)
-		return
-	}
-}
-
-func (t *proxyTest) testExec(makeHooks func(*proxyTest) *Hooks, expected []string) {
-	driverName := fmt.Sprintf("sqlite-proxy-test-exec-%d", <-t.seq)
-	t.recorded = []string(nil)
-	h := makeHooks(t)
-
-	sql.Register(driverName, NewProxy(&sqlite3.SQLiteDriver{}, h))
-
-	db, err := sql.Open(driverName, ":memory:")
-	if err != nil {
-		t.Fatalf("Open failed: %v", err)
-	}
-
-	_, err = db.Exec(
-		"CREATE TABLE t1 (id INTEGER PRIMARY KEY)",
-	)
-	if err != nil {
-		t.Fatalf("create table failed: %v", err)
-	}
-
-	if err := t.verify(expected); err != nil {
-		t.Errorf("%s: %s", driverName, err)
-		return
-	}
-}
-
-func (t *proxyTest) testQuery(makeHooks func(*proxyTest) *Hooks, expected []string) {
-	driverName := fmt.Sprintf("sqlite-proxy-test-query-%d", <-t.seq)
-	t.recorded = []string(nil)
-	h := makeHooks(t)
-
-	sql.Register(driverName, NewProxy(&sqlite3.SQLiteDriver{}, h))
-
-	db, err := sql.Open(driverName, ":memory:")
-	if err != nil {
-		t.Fatalf("Open failed: %v", err)
-	}
-
-	_, err = db.Query("SELECT 1")
-	if err != nil {
-		t.Fatalf("create table failed: %v", err)
-	}
-
-	if err := t.verify(expected); err != nil {
-		t.Errorf("%s: %s", driverName, err)
-		return
-	}
-}
-
-func TestOpenAll(t *testing.T) {
-	var elapsed time.Duration
-	newProxyTest(t).testOpen(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				PreOpen: func(name string) (interface{}, error) {
-					p.record("PreOpen")
-					return time.Now(), nil
-				},
-				Open: func(_ interface{}, _ driver.Conn) error {
-					p.record("Open")
-					return nil
-				},
-				PostOpen: func(ctx interface{}, _ driver.Conn) error {
-					elapsed = time.Since(ctx.(time.Time))
-					p.record("PostOpen")
-					return nil
-				},
-			}
+	testHooksInterface(t, &Hooks{
+		PreOpen: func(name string) (interface{}, error) {
+			return ctx0, nil
 		},
-		[]string{
-			"PreOpen",
-			"Open",
-			"PostOpen",
-		},
-	)
-
-	if elapsed == 0 {
-		t.Errorf("'elapsed' should not be zero")
-		return
-	}
-}
-
-func TestNoPreOpen(t *testing.T) {
-	newProxyTest(t).testOpen(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				Open: func(_ interface{}, _ driver.Conn) error {
-					p.record("Open")
-					return nil
-				},
-				PostOpen: func(_ interface{}, _ driver.Conn) error {
-					p.record("PostOpen")
-					return nil
-				},
-			}
-		},
-		[]string{
-			"Open",
-			"PostOpen",
-		},
-	)
-}
-
-func TestNoPostOpen(t *testing.T) {
-	newProxyTest(t).testOpen(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				PreOpen: func(_ string) (interface{}, error) {
-					p.record("PreOpen")
-					return nil, nil
-				},
-				Open: func(_ interface{}, _ driver.Conn) error {
-					p.record("Open")
-					return nil
-				},
-			}
-		},
-		[]string{
-			"PreOpen",
-			"Open",
-		},
-	)
-}
-
-func TestExecAll(t *testing.T) {
-	var elapsed time.Duration
-
-	newProxyTest(t).testExec(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
-					p.record("PreExec")
-					return time.Now(), nil
-				},
-				Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
-					p.record("Exec")
-					return nil
-				},
-				PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
-					p.record("PostExec")
-					elapsed = time.Since(ctx.(time.Time))
-					return nil
-				},
-			}
-		},
-		[]string{
-			"PreExec",
-			"Exec",
-			"PostExec",
-		},
-	)
-
-	if elapsed == 0 {
-		t.Errorf("'elapsed' should not be zero")
-		return
-	}
-}
-
-func TestExecNoPreExec(t *testing.T) {
-	newProxyTest(t).testExec(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
-					p.record("Exec")
-					return nil
-				},
-				PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
-					p.record("PostExec")
-					return nil
-				},
-			}
-		},
-		[]string{
-			"Exec",
-			"PostExec",
-		},
-	)
-}
-
-func TestExecNoPostExec(t *testing.T) {
-	newProxyTest(t).testExec(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
-					p.record("PreExec")
-					return nil, nil
-				},
-				Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
-					p.record("Exec")
-					return nil
-				},
-			}
-		},
-		[]string{
-			"PreExec",
-			"Exec",
-		},
-	)
-}
-
-func TestQueryAll(t *testing.T) {
-	var elapsed time.Duration
-
-	newProxyTest(t).testQuery(
-		func(p *proxyTest) *Hooks {
-			return &Hooks{
-				PreQuery: func(_ *Stmt, _ []driver.Value) (interface{}, error) {
-					p.record("PreQuery")
-					return time.Now(), nil
-				},
-				Query: func(_ interface{}, _ *Stmt, _ []driver.Value, _ driver.Rows) error {
-					p.record("Query")
-					return nil
-				},
-				PostQuery: func(ctx interface{}, _ *Stmt, _ []driver.Value, _ driver.Rows) error {
-					p.record("PostQuery")
-					elapsed = time.Since(ctx.(time.Time))
-					return nil
-				},
-			}
-		},
-		[]string{
-			"PreQuery",
-			"Query",
-			"PostQuery",
-		},
-	)
-
-	if elapsed == 0 {
-		t.Errorf("'elapsed' should not be zero")
-		return
-	}
-}
-
-func TestProxy(t *testing.T) {
-	statements := []string{}
-	sql.Register("sqlite3-proxy", NewProxy(&sqlite3.SQLiteDriver{}, &Hooks{
-		Open: func(_ interface{}, _ driver.Conn) error {
-			t.Log("Open")
-			statements = append(statements, "Open")
+		Open: func(ctx interface{}, conn driver.Conn) error {
+			checkCtx("Open", ctx)
 			return nil
 		},
-		Exec: func(_ interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
-			t.Logf("Exec: %s; args = %v", stmt.QueryString, args)
-			statements = append(statements, fmt.Sprintf("Exec: %s; args = %v", stmt.QueryString, args))
+		PostOpen: func(ctx interface{}, conn driver.Conn) error {
+			checkCtx("PostOpen", ctx)
 			return nil
 		},
-		Query: func(_ interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
-			t.Logf("Query: %s; args = %v", stmt.QueryString, args)
-			statements = append(statements, fmt.Sprintf("Query: %s; args = %v", stmt.QueryString, args))
+		PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
+			return ctx0, nil
+		},
+		Exec: func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+			checkCtx("Exec", ctx)
 			return nil
 		},
-		Begin: func(_ interface{}, _ *Conn) error {
-			t.Log("Begin")
-			statements = append(statements, "Begin")
+		PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, result driver.Result) error {
+			checkCtx("PostExec", ctx)
 			return nil
 		},
-		Commit: func(_ interface{}, _ *Tx) error {
-			t.Log("Commit")
-			statements = append(statements, "Commit")
+		PreQuery: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
+			return ctx0, nil
+		},
+		Query: func(ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+			checkCtx("Query", ctx)
 			return nil
 		},
-		Rollback: func(_ interface{}, _ *Tx) error {
-			t.Log("Rollback")
-			statements = append(statements, "Rollback")
+		PostQuery: func(ctx interface{}, stmt *Stmt, args []driver.Value, rows driver.Rows) error {
+			checkCtx("PostQuery", ctx)
 			return nil
 		},
-	}))
+		PreBegin: func(conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		Begin: func(ctx interface{}, conn *Conn) error {
+			checkCtx("Begin", ctx)
+			return nil
+		},
+		PostBegin: func(ctx interface{}, conn *Conn) error {
+			checkCtx("PostBegin", ctx)
+			return nil
+		},
+		PreCommit: func(tx *Tx) (interface{}, error) {
+			return ctx0, nil
+		},
+		Commit: func(ctx interface{}, tx *Tx) error {
+			checkCtx("Commit", ctx)
+			return nil
+		},
+		PostCommit: func(ctx interface{}, tx *Tx) error {
+			checkCtx("PostCommit", ctx)
+			return nil
+		},
+		PreRollback: func(tx *Tx) (interface{}, error) {
+			return ctx0, nil
+		},
+		Rollback: func(ctx interface{}, tx *Tx) error {
+			checkCtx("Rollback", ctx)
+			return nil
+		},
+		PostRollback: func(ctx interface{}, tx *Tx) error {
+			checkCtx("PostRollback", ctx)
+			return nil
+		},
+	}, ctx0)
+}
 
-	db, err := sql.Open("sqlite3-proxy", ":memory:")
-	if err != nil {
-		t.Fatalf("Open failed: %v", err)
+func TestFakeDB(t *testing.T) {
+	testName := t.Name()
+	testCases := []struct {
+		opt      *fakeConnOption
+		hooksLog string
+		f        func(db *sql.DB) error
+	}{
+		// the target driver is minimum implementation
+		{
+			opt: &fakeConnOption{
+				Name: "pingAll",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
+			f: func(db *sql.DB) error {
+				return db.Ping()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "execAll",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "execError",
+				FailExec: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				if err == nil {
+					return errors.New("excepted error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "execError-NamedValue",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				// this Exec will fail, because the driver doesn't support sql.Named()
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", sql.Named("foo", 123456789))
+				if err == nil {
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "queryAll",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:      "queryError",
+				FailQuery: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				if err == nil {
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "prepare",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
+				if err != nil {
+					return nil
+				}
+				return stmt.Close()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "commit",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "rollback",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
+			f: func(db *sql.DB) error {
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				return tx.Rollback()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "begin-isolation",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[PostBegin]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				_, err := db.BeginTx(ctx, &sql.TxOptions{
+					Isolation: sql.LevelLinearizable,
+				})
+				if err == nil {
+					// because the driver does not support sql.LevelLinearizable
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name: "begin-readonly",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[PostBegin]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				_, err := db.BeginTx(ctx, &sql.TxOptions{
+					ReadOnly: true,
+				})
+				if err == nil {
+					// because the driver does not support read-only transaction
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+
+		// the Conn of the target driver implements Execer and Queryer
+		{
+			opt: &fakeConnOption{
+				Name:     "execAll-ext",
+				ConnType: "fakeConnExt",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "execError-ext",
+				ConnType: "fakeConnExt",
+				FailExec: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				if err == nil {
+					return errors.New("excepted error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "queryAll-ext",
+				ConnType: "fakeConnExt",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:      "queryError-ext",
+				ConnType:  "fakeConnExt",
+				FailQuery: true,
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				if err == nil {
+					return errors.New("expected error, but not")
+				}
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "prepare-ext",
+				ConnType: "fakeConnExt",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
+				if err != nil {
+					return err
+				}
+				defer stmt.Close()
+				_, err = stmt.Exec(123456789)
+				return err
+			},
+		},
+
+		// the Conn of the target driver supports the context.
+		{
+			opt: &fakeConnOption{
+				Name:     "pingAll-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
+			f: func(db *sql.DB) error {
+				return db.Ping()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "execAll-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "execAll-NamedValue-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", sql.Named("foo", 123456789))
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "queryAll-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n" +
+				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "prepare-exec-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("CREATE TABLE t1 (id INTEGER PRIMARY KEY)")
+				if err != nil {
+					return nil
+				}
+				defer stmt.Close()
+				_, err = stmt.Exec(123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "prepare-query-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreQuery]\n[Query]\n[PostQuery]\n",
+			f: func(db *sql.DB) error {
+				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
+				if err != nil {
+					return nil
+				}
+				defer stmt.Close()
+				rows, err := stmt.Query(123456789)
+				if err != nil {
+					return err
+				}
+				// skip close in this test, while you must close the rows in your product.
+				// because the result from fakeDB is broken.
+				// rows.Close()
+				_ = rows
+				return nil
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "commit-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "rollback-ctx",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
+			f: func(db *sql.DB) error {
+				tx, err := db.Begin()
+				if err != nil {
+					return err
+				}
+				return tx.Rollback()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "begin-ctx-isolation",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				tx, err := db.BeginTx(ctx, &sql.TxOptions{
+					Isolation: sql.LevelLinearizable,
+				})
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "begin-ctx-readonly",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
+				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+			f: func(db *sql.DB) error {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				tx, err := db.BeginTx(ctx, &sql.TxOptions{
+					ReadOnly: true,
+				})
+				if err != nil {
+					return err
+				}
+				return tx.Commit()
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "context-with-no-hooks",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				// remove the hooks from the current context.
+				// Exec will not be logged.
+				ctx := WithHooks(context.Background())
+				_, err := db.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				return err
+			},
+		},
+		{
+			opt: &fakeConnOption{
+				Name:     "context-with-hooks",
+				ConnType: "fakeConnCtx",
+			},
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			f: func(db *sql.DB) error {
+				buf := &bytes.Buffer{}
+				ctx := context.WithValue(context.Background(), contextHooksKey{}, newLoggingHook(buf))
+				_, err := db.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
+				if err != nil {
+					return err
+				}
+				if _, ok := db.Driver().(*Proxy); ok {
+					got := buf.String()
+					want := "[PreExec]\n[Exec]\n[PostExec]\n"
+					if got != want {
+						return fmt.Errorf("want %s, got %s", want, got)
+					}
+				}
+				return nil
+			},
+		},
 	}
 
-	_, err = db.Exec(
-		"CREATE TABLE t1 (id INTEGER PRIMARY KEY)",
-	)
-	if err != nil {
-		t.Fatalf("create table failed: %v", err)
-	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.opt.Name, func(t *testing.T) {
+			// install a proxy
+			name := tc.opt.Name
+			buf := &bytes.Buffer{}
+			driverName := fmt.Sprintf("%s-proxy-%s", testName, name)
+			sql.Register(driverName, &Proxy{
+				Driver: fdriver,
+				hooks:  newLoggingHook(buf),
+			})
 
-	dbm := txmanager.NewDB(db)
-	txmanager.Do(dbm, func(tx txmanager.Tx) error {
-		_, err := tx.Exec("INSERT INTO t1 (id) VALUES(?)", 1)
-		return err
-	})
-	if err != nil {
-		t.Fatalf("do failed: %v", err)
-	}
+			// Run test queries directly
+			tc.opt.Name = fmt.Sprintf("%s-%s", testName, name)
+			dbName, err := json.Marshal(tc.opt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			db, err := sql.Open("fakedb", string(dbName))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = tc.f(db); err != nil {
+				t.Error(err)
+			}
 
-	row := dbm.QueryRow("SELECT id FROM t1 WHERE id = ?", 1)
-	var id int
-	if err = row.Scan(&id); err != nil {
-		t.Fatalf("selecting row failed: %v", err)
-	}
-	if id != 1 {
-		t.Errorf("got %d\nwant 1", id)
-	}
+			// Run test queris via a proxy
+			tc.opt.Name = fmt.Sprintf("%s-proxy-%s", testName, name)
+			dbProxyName, err := json.Marshal(tc.opt)
+			dbProxy, err := sql.Open(driverName, string(dbProxyName))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = tc.f(dbProxy); err != nil {
+				t.Error(err)
+			}
 
-	want := []string{
-		"Open",
-		"Exec: CREATE TABLE t1 (id INTEGER PRIMARY KEY); args = []",
-		"Begin",
-		"Exec: INSERT INTO t1 (id) VALUES(?); args = [1]",
-		"Commit",
-		"Query: SELECT id FROM t1 WHERE id = ?; args = [1]",
-	}
-	if !reflect.DeepEqual(statements, want) {
-		t.Errorf("got %v\nwant %v", statements, want)
+			// check the logs
+			want := fdriver.DB(string(dbName)).LogToString()
+			got := fdriver.DB(string(dbProxyName)).LogToString()
+			if want != got {
+				t.Errorf("want %s, got %s", want, got)
+			}
+			if tc.hooksLog != buf.String() {
+				t.Errorf("want %s, got %s", tc.hooksLog, buf.String())
+			}
+			t.Log("Driver log:", got)
+			t.Log("Hook log:", buf.String())
+		})
 	}
 }

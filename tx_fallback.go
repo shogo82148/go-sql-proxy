@@ -1,17 +1,13 @@
-// +build go1.8
+// +build !go1.8
 
 package proxy
 
-import (
-	"context"
-	"database/sql/driver"
-)
+import "database/sql/driver"
 
 // Tx adds hook points into "database/sql/driver".Tx.
 type Tx struct {
 	Tx    driver.Tx
 	Proxy *Proxy
-	ctx   context.Context
 }
 
 // Commit commits the transaction.
@@ -19,10 +15,13 @@ type Tx struct {
 func (tx *Tx) Commit() error {
 	var err error
 	var ctx interface{}
-	hooks := tx.Proxy.getHooks(tx.ctx)
-	if hooks != nil {
-		defer func() { hooks.postCommit(tx.ctx, ctx, tx, err) }()
-		if ctx, err = hooks.preCommit(tx.ctx, tx); err != nil {
+
+	if h := tx.Proxy.Hooks.PostCommit; h != nil {
+		defer func() { h(ctx, tx) }()
+	}
+
+	if h := tx.Proxy.Hooks.PreCommit; h != nil {
+		if ctx, err = h(tx); err != nil {
 			return err
 		}
 	}
@@ -31,9 +30,10 @@ func (tx *Tx) Commit() error {
 		return err
 	}
 
-	if hooks != nil {
-		return hooks.commit(tx.ctx, ctx, tx)
+	if hook := tx.Proxy.Hooks.Commit; hook != nil {
+		return hook(ctx, tx)
 	}
+
 	return nil
 }
 
@@ -42,20 +42,24 @@ func (tx *Tx) Commit() error {
 func (tx *Tx) Rollback() error {
 	var err error
 	var ctx interface{}
-	hooks := tx.Proxy.getHooks(tx.ctx)
-	if hooks != nil {
-		defer func() { hooks.postRollback(tx.ctx, ctx, tx, err) }()
-		if ctx, err = hooks.preRollback(tx.ctx, tx); err != nil {
+
+	if h := tx.Proxy.Hooks.PostRollback; h != nil {
+		defer func() { h(ctx, tx) }()
+	}
+
+	if h := tx.Proxy.Hooks.PreRollback; h != nil {
+		if ctx, err = h(tx); err != nil {
 			return err
 		}
 	}
 
-	if err = tx.Tx.Rollback(); err != nil {
+	if err := tx.Tx.Rollback(); err != nil {
 		return err
 	}
 
-	if hooks != nil {
-		return hooks.rollback(tx.ctx, ctx, tx)
+	if hook := tx.Proxy.Hooks.Rollback; hook != nil {
+		return hook(ctx, tx)
 	}
+
 	return nil
 }

@@ -1,6 +1,11 @@
+// +build go1.8
+
 package proxy
 
-import "database/sql/driver"
+import (
+	"context"
+	"database/sql/driver"
+)
 
 // Stmt adds hook points into "database/sql/driver".Stmt.
 type Stmt struct {
@@ -26,29 +31,48 @@ func (stmt *Stmt) NumInput() int {
 
 // Exec executes a query that doesn't return rows.
 // It will trigger PreExec, Exec, PostExec hooks.
+// NOT SUPPORTED: use ExecContext instead
 func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) {
+	panic("not supported")
+}
+
+// ExecContext executes a query that doesn't return rows.
+// It will trigger PreExec, Exec, PostExec hooks.
+func (stmt *Stmt) ExecContext(c context.Context, args []driver.NamedValue) (driver.Result, error) {
 	var ctx interface{}
 	var err error
 	var result driver.Result
-
-	if h := stmt.Proxy.Hooks.PostExec; h != nil {
-		defer func() { h(ctx, stmt, args, result) }()
-	}
-
-	if h := stmt.Proxy.Hooks.PreExec; h != nil {
-		if ctx, err = h(stmt, args); err != nil {
+	hooks := stmt.Proxy.getHooks(c)
+	if hooks != nil {
+		defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
+		if ctx, err = hooks.preExec(c, stmt, args); err != nil {
 			return nil, err
 		}
 	}
 
-	result, err = stmt.Stmt.Exec(args)
+	if execerContext, ok := stmt.Stmt.(driver.StmtExecContext); ok {
+		result, err = execerContext.ExecContext(c, args)
+	} else {
+		dargs, err0 := namedValuesToValues(args)
+		if err0 != nil {
+			return nil, err0
+		}
+		result, err = stmt.Stmt.Exec(dargs)
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				err = c.Err()
+			}
+		}
+	}
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 
-	if hook := stmt.Proxy.Hooks.Exec; hook != nil {
-		if err := hook(ctx, stmt, args, result); err != nil {
-			return nil, err
+	if hooks != nil {
+		if err = hooks.exec(c, ctx, stmt, args, result); err != nil {
+			return result, err
 		}
 	}
 
@@ -57,28 +81,49 @@ func (stmt *Stmt) Exec(args []driver.Value) (driver.Result, error) {
 
 // Query executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
+// NOT SUPPORTED: use QueryContext instead
 func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error) {
+	panic("not supported")
+}
+
+// Query executes a query that may return rows.
+// It wil trigger PreQuery, Query, PostQuery hooks.
+func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	var ctx interface{}
 	var err error
 	var rows driver.Rows
-
-	if h := stmt.Proxy.Hooks.PostQuery; h != nil {
-		defer func() { h(ctx, stmt, args, rows) }()
-	}
-
-	if h := stmt.Proxy.Hooks.PreQuery; h != nil {
-		if ctx, err = h(stmt, args); err != nil {
+	hooks := stmt.Proxy.getHooks(c)
+	if hooks != nil {
+		defer func() { hooks.postQuery(c, ctx, stmt, args, rows, err) }()
+		if ctx, err = hooks.preQuery(c, stmt, args); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err = stmt.Stmt.Query(args)
+	if queryCtx, ok := stmt.Stmt.(driver.StmtQueryContext); ok {
+		rows, err = queryCtx.QueryContext(c, args)
+	} else {
+		dargs, err0 := namedValuesToValues(args)
+		if err0 != nil {
+			return nil, err0
+		}
+		rows, err = stmt.Stmt.Query(dargs)
+		if err == nil {
+			select {
+			default:
+			case <-c.Done():
+				rows.Close()
+				rows = nil
+				err = c.Err()
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	if hook := stmt.Proxy.Hooks.Query; hook != nil {
-		if err := hook(ctx, stmt, args, rows); err != nil {
+	if hooks != nil {
+		if err = hooks.query(c, ctx, stmt, args, rows); err != nil {
 			return nil, err
 		}
 	}

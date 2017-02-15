@@ -1,12 +1,6 @@
 package proxy
 
-import (
-	"database/sql/driver"
-	"fmt"
-	"runtime"
-	"strings"
-	"time"
-)
+import "runtime"
 
 // Outputter is what is used by the tracing proxy created via `NewTraceProxy`.
 // Anything that implements a `log.Logger` style `Output` method will satisfy
@@ -34,6 +28,13 @@ func (f PackageFilter) Ignore(packageName string) {
 	f[packageName] = struct{}{}
 }
 
+// DefaultPackageFilter ignores some database util package.
+var DefaultPackageFilter = PackageFilter{
+	"database/sql":                       struct{}{},
+	"github.com/shogo82148/txmanager":    struct{}{},
+	"github.com/shogo82148/go-sql-proxy": struct{}{},
+}
+
 func findCaller(f Filter) int {
 	// i starts 4. 0: findCaller, 1: hooks, 2: proxy-funcs, 3: database/sql, and equals or greater than 4: user-funcs
 	for i := 4; ; i++ {
@@ -43,116 +44,19 @@ func findCaller(f Filter) int {
 		}
 
 		// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
-		parts := strings.Split(runtime.FuncForPC(pc).Name(), ".")
-		pl := len(parts)
-		packageName := ""
-		for j := pl - 1; j > 0; j-- { // find a type name
-			if parts[j][0] == '(' {
-				packageName = strings.Join(parts[0:j], ".")
+		name := runtime.FuncForPC(pc).Name()
+		dotIdx := 0
+		for j := len(name) - 1; j >= 0; j-- {
+			if name[j] == '.' {
+				dotIdx = j
+			} else if name[j] == '/' {
 				break
 			}
 		}
-		if packageName == "" {
-			packageName = strings.Join(parts[0:pl-1], ".")
-		}
-
+		packageName := name[:dotIdx]
 		if f.DoOutput(packageName) {
 			return i
 		}
 	}
 	return 0
-}
-
-// NewTraceProxy generates a proxy that logs queries.
-func NewTraceProxy(d driver.Driver, o Outputter) *Proxy {
-	return NewTraceProxyWithFilter(d, o, nil)
-}
-
-// NewTraceProxyWithFilter generates a proxy that logs queries.
-func NewTraceProxyWithFilter(d driver.Driver, o Outputter, f Filter) *Proxy {
-	if f == nil {
-		f = PackageFilter{
-			"database/sql":                    struct{}{},
-			"github.com/shogo82148/txmanager": struct{}{},
-		}
-	}
-
-	return &Proxy{
-		Driver: d,
-		Hooks: &Hooks{
-			PreOpen: func(_ string) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostOpen: func(ctx interface{}, _ driver.Conn) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf(
-						"Open (%s)",
-						time.Since(ctx.(time.Time)),
-					),
-				)
-				return nil
-			},
-			PreExec: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostExec: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Result) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf(
-						"Exec: %s; args = %v (%s)",
-						stmt.QueryString,
-						args,
-						time.Since(ctx.(time.Time)),
-					),
-				)
-				return nil
-			},
-			PreQuery: func(stmt *Stmt, args []driver.Value) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostQuery: func(ctx interface{}, stmt *Stmt, args []driver.Value, _ driver.Rows) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf(
-						"Query: %s; args = %v (%s)",
-						stmt.QueryString,
-						args,
-						time.Since(ctx.(time.Time)),
-					),
-				)
-				return nil
-			},
-			PreBegin: func(_ *Conn) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostBegin: func(ctx interface{}, _ *Conn) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf("Begin (%s)", time.Since(ctx.(time.Time))),
-				)
-				return nil
-			},
-			PreCommit: func(_ *Tx) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostCommit: func(ctx interface{}, _ *Tx) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf("Commit (%s)", time.Since(ctx.(time.Time))),
-				)
-				return nil
-			},
-			PreRollback: func(_ *Tx) (interface{}, error) {
-				return time.Now(), nil
-			},
-			PostRollback: func(ctx interface{}, _ *Tx) error {
-				o.Output(
-					findCaller(f),
-					fmt.Sprintf("Rollback (%s)", time.Since(ctx.(time.Time))),
-				)
-				return nil
-			},
-		},
-	}
 }
