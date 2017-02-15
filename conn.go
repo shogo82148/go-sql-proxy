@@ -4,10 +4,9 @@ package proxy
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"errors"
-
-	"github.com/golang/go/src/database/sql"
 )
 
 // Conn adds hook points into "database/sql/driver".Conn.
