@@ -42,7 +42,7 @@ func findCaller(f Filter) int {
 		var rpc [8]uintptr
 		n := runtime.Callers(skip, rpc[:])
 
-		for i, pc := range rpc {
+		for i, pc := range rpc[:n] {
 			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
 			name := runtime.FuncForPC(pc).Name()
 			dotIdx := 0
