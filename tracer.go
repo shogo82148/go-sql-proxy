@@ -41,10 +41,12 @@ func findCaller(f Filter) int {
 	for {
 		var rpc [8]uintptr
 		n := runtime.Callers(skip, rpc[:])
+		frames := runtime.CallersFrames(rpc[:])
 
-		for i, pc := range rpc[:n] {
+		for i := 0; ; i++ {
 			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
-			name := runtime.FuncForPC(pc).Name()
+			frame, more := frames.Next()
+			name := frame.Func.Name()
 			dotIdx := 0
 			for j := len(name) - 1; j >= 0; j-- {
 				if name[j] == '.' {
@@ -57,6 +59,9 @@ func findCaller(f Filter) int {
 			if f.DoOutput(packageName) {
 				// -1 because the meaning of skip differs between Caller and Callers.
 				return skip + i - 1
+			}
+			if !more {
+				break
 			}
 		}
 		if n < len(rpc) {
