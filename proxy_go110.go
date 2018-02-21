@@ -21,7 +21,6 @@ func (c *driverConnector) Driver() driver.Driver {
 }
 
 // OpenConnector creates new connection which is wrapped by Conn.
-// It will triggers PreOpen, Open, PostOpen hooks.
 func (p *Proxy) OpenConnector(name string) (driver.Connector, error) {
 	if d, ok := p.Driver.(driver.DriverContext); ok {
 		c, err := d.OpenConnector(name)
