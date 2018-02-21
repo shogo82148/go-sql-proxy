@@ -187,19 +187,16 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 	if execerCtx, ok := execer.(driver.ExecerContext); ok {
 		result, err = execerCtx.ExecContext(c, query, args)
 	} else {
+		select {
+		default:
+		case <-c.Done():
+			return nil, c.Err()
+		}
 		dargs, err0 := namedValuesToValues(args)
 		if err0 != nil {
 			return nil, err0
 		}
 		result, err = execer.Exec(query, dargs)
-		if err == nil {
-			select {
-			default:
-			case <-c.Done():
-				err = c.Err()
-				return result, err
-			}
-		}
 	}
 	if err != nil {
 		return nil, err
@@ -253,20 +250,16 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 	if queryerCtx, ok := conn.Conn.(driver.QueryerContext); ok {
 		rows, err = queryerCtx.QueryContext(c, query, args)
 	} else {
+		select {
+		default:
+		case <-c.Done():
+			return nil, c.Err()
+		}
 		dargs, err0 := namedValuesToValues(args)
 		if err0 != nil {
 			return nil, err0
 		}
 		rows, err = queryer.Query(query, dargs)
-		if err == nil {
-			select {
-			default:
-			case <-c.Done():
-				rows.Close()
-				rows = nil
-				err = c.Err()
-			}
-		}
 	}
 	if err != nil {
 		return nil, err
