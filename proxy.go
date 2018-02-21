@@ -966,6 +966,7 @@ func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
 	case len(hs) == 0:
 		return &Proxy{
 			Driver: driver,
+			hooks:  (*Hooks)(nil),
 		}
 	case len(hs) == 1 && hs[0] != nil:
 		return &Proxy{
@@ -986,12 +987,13 @@ func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
 	}
 }
 
-// NewProxy creates new Proxy driver.
+// NewProxyContext creates new Proxy driver.
 func NewProxyContext(driver driver.Driver, hs ...*HooksContext) *Proxy {
 	switch {
 	case len(hs) == 0:
 		return &Proxy{
 			Driver: driver,
+			hooks:  (*Hooks)(nil),
 		}
 	case len(hs) == 1 && hs[0] != nil:
 		return &Proxy{
