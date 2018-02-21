@@ -9,15 +9,34 @@ import (
 
 type connector struct {
 	connector driver.Connector
-	hooks     []*HooksContext
+	hooks     hooks
 }
 
 // NewConnector creates new connector.
 // It adds hook points to other sql drivers.
 func NewConnector(c driver.Connector, hs ...*HooksContext) driver.Connector {
+	switch {
+	case len(hs) == 0:
+		return &connector{
+			connector: c,
+			hooks:     (*Hooks)(nil),
+		}
+	case len(hs) == 1 && hs[0] != nil:
+		return &connector{
+			connector: c,
+			hooks:     hs[0],
+		}
+	}
+
+	hooksSlice := make([]hooks, 0, len(hs))
+	for _, hk := range hs {
+		if hk != nil {
+			hooksSlice = append(hooksSlice, hk)
+		}
+	}
 	return &connector{
 		connector: c,
-		hooks:     hs,
+		hooks:     multipleHooks(hooksSlice),
 	}
 }
 
@@ -26,7 +45,7 @@ func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	proxy := NewProxyContext(c.connector.Driver(), c.hooks...)
+	proxy := newProxyContext(c.connector.Driver(), c.hooks)
 	return &Conn{
 		Conn:  conn,
 		Proxy: proxy,
@@ -34,5 +53,5 @@ func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 }
 
 func (c *connector) Driver() driver.Driver {
-	return NewProxyContext(c.connector.Driver(), c.hooks...)
+	return newProxyContext(c.connector.Driver(), c.hooks)
 }

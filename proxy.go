@@ -1014,6 +1014,13 @@ func NewProxyContext(driver driver.Driver, hs ...*HooksContext) *Proxy {
 	}
 }
 
+func newProxyContext(driver driver.Driver, hooks hooks) *Proxy {
+	return &Proxy{
+		Driver: driver,
+		hooks:  hooks,
+	}
+}
+
 type contextHooksKey struct{}
 
 // WithHooks returns a copy of parent context in which the hooks associated.
