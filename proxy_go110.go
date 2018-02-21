@@ -29,8 +29,8 @@ func (p *Proxy) OpenConnector(name string) (driver.Connector, error) {
 			return nil, err
 		}
 		return &connector{
+			p:         p,
 			connector: c,
-			hooks:     p.hooks,
 		}, nil
 	}
 
