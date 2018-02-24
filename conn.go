@@ -87,7 +87,7 @@ func (conn *Conn) Begin() (driver.Tx, error) {
 	panic("not supported")
 }
 
-// BeginContext starts and returns a new transaction which is wrapped by Tx.
+// BeginTx starts and returns a new transaction which is wrapped by Tx.
 // It will trigger PreBegin, Begin, PostBegin hooks.
 func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	// set the hooks.
@@ -218,7 +218,7 @@ func (conn *Conn) Query(query string, args []driver.Value) (driver.Rows, error) 
 	panic("not supported")
 }
 
-// Query executes a query that may return rows.
+// QueryContext executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.

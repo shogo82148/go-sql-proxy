@@ -74,6 +74,7 @@ func NewTraceProxyWithFilter(d driver.Driver, o Outputter, f Filter) *Proxy {
 	}))
 }
 
+// NewTraceHooks creates new HooksContext which trace SQL queries.
 func NewTraceHooks(opt TracerOptions) *HooksContext {
 	f := opt.Filter
 	if f == nil {
