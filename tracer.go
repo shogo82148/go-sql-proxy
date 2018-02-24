@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
-	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -246,22 +245,16 @@ func writeNamedValues(w io.Writer, args []driver.NamedValue) {
 	}
 }
 
-// newer version of findCaller.
-// It uses runtime.CallersFrames instead of runtime.FuncForPC.
-// Because runtime.FuncForPC will be deprecated in Go1.9.
-// See #16 for more detail.
 func findCaller(f Filter) int {
 	// skip starts 4. 0: Callers, 1: findCaller, 2: hooks, 3: proxy-funcs, 4: database/sql, and equals or greater than 5: user-funcs
 	skip := 5
 	for {
 		var rpc [8]uintptr
 		n := runtime.Callers(skip, rpc[:])
-		frames := runtime.CallersFrames(rpc[:])
 
-		for i := 0; ; i++ {
+		for i, pc := range rpc[:n] {
 			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
-			frame, more := frames.Next()
-			name := frame.Func.Name()
+			name := runtime.FuncForPC(pc).Name()
 			dotIdx := 0
 			for j := len(name) - 1; j >= 0; j-- {
 				if name[j] == '.' {
@@ -271,13 +264,9 @@ func findCaller(f Filter) int {
 				}
 			}
 			packageName := name[:dotIdx]
-			log.Println(packageName)
 			if f.DoOutput(packageName) {
 				// -1 because the meaning of skip differs between Caller and Callers.
 				return skip + i - 1
-			}
-			if !more {
-				break
 			}
 		}
 		if n < len(rpc) {
