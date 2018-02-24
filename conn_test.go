@@ -1,5 +1,3 @@
-// +build go1.8
-
 package proxy
 
 import "database/sql/driver"
