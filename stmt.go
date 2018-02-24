@@ -1,5 +1,3 @@
-// +build go1.8
-
 package proxy
 
 import (
@@ -84,7 +82,7 @@ func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error) {
 	panic("not supported")
 }
 
-// Query executes a query that may return rows.
+// QueryContext executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
 func (stmt *Stmt) QueryContext(c context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	var ctx interface{}

@@ -13,7 +13,7 @@ import (
 	"github.com/shogo82148/txmanager"
 )
 
-var illegalSQLError = `tracer_test.go:53: Exec: ILLEGAL SQL; args = \[\] `
+var illegalSQLError = `tracer_test.go:\d+: Exec: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" `
 
 func TestTraceProxy(t *testing.T) {
 	buf := &bytes.Buffer{}
