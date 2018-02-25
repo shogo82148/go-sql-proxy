@@ -1,5 +1,3 @@
-// +build go1.8
-
 package proxy
 
 import (
@@ -165,5 +163,47 @@ func (h *loggingHook) postRollback(c context.Context, ctx interface{}, tx *Tx, e
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostRollback]")
+	return nil
+}
+
+func (h *loggingHook) preClose(c context.Context, conn *Conn) (interface{}, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PreClose]")
+	return nil, nil
+}
+
+func (h *loggingHook) close(c context.Context, ctx interface{}, conn *Conn) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[Close]")
+	return nil
+}
+
+func (h *loggingHook) postClose(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PostClose]")
+	return nil
+}
+
+func (h *loggingHook) preResetSession(c context.Context, conn *Conn) (interface{}, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PreResetSession]")
+	return nil, nil
+}
+
+func (h *loggingHook) resetSession(c context.Context, ctx interface{}, conn *Conn) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[ResetSession]")
+	return nil
+}
+
+func (h *loggingHook) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PostResetSession]")
 	return nil
 }
