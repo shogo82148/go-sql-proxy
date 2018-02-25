@@ -39,6 +39,12 @@ type hooks interface {
 	preRollback(c context.Context, tx *Tx) (interface{}, error)
 	rollback(c context.Context, ctx interface{}, tx *Tx) error
 	postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error
+	preClose(c context.Context, conn *Conn) (interface{}, error)
+	close(c context.Context, ctx interface{}, conn *Conn) error
+	postClose(c context.Context, ctx interface{}, conn *Conn, err error) error
+	preResetSession(c context.Context, conn *Conn) (interface{}, error)
+	resetSession(c context.Context, ctx interface{}, conn *Conn) error
+	postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error
 }
 
 // HooksContext is callback functions with context.Context for the proxy.
@@ -265,6 +271,70 @@ type HooksContext struct {
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreRollback` method, and may be nil.
 	PostRollback func(c context.Context, ctx interface{}, tx *Tx, err error) error
+
+	// PreClose is a callback that gets called prior to calling
+	// `Conn.Close`, and is ALWAYS called. If this callback returns an
+	// error, the underlying driver's `Conn.Close` and `Hooks.Close` methods
+	// are not called.
+	//
+	// The first return value is passed to both `Hooks.Close` and
+	// `Hooks.PostClose` callbacks. You may specify anything you want.
+	// Return nil if you do not need to use it.
+	//
+	// The second return value is indicates the error found while
+	// executing this hook. If this callback returns an error,
+	// the underlying driver's `Conn.Close` method and `Hooks.Close`
+	// methods are not called.
+	PreClose func(c context.Context, conn *Conn) (interface{}, error)
+
+	// Close is called after the underlying driver's `Conn.Close` method
+	// returns without any errors.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreClose` method, and may be nil.
+	//
+	// If this callback returns an error, then the error from this
+	// callback is returned by the `Cpnn.Close` method.
+	Close func(c context.Context, ctx interface{}, conn *Conn) error
+
+	// PostClose is a callback that gets called at the end of
+	// the call to `Conn.Close`. It is ALWAYS called.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreClose` method, and may be nil.
+	PostClose func(c context.Context, ctx interface{}, conn *Conn, err error) error
+
+	// PreResetSession is a callback that gets called prior to calling
+	// `Conn.ResetSession`, and is ALWAYS called. If this callback returns an
+	// error, the underlying driver's `Conn.ResetSession` and `Hooks.ResetSession` methods
+	// are not called.
+	//
+	// The first return value is passed to both `Hooks.ResetSession` and
+	// `Hooks.PostResetSession` callbacks. You may specify anything you want.
+	// Return nil if you do not need to use it.
+	//
+	// The second return value is indicates the error found while
+	// executing this hook. If this callback returns an error,
+	// the underlying driver's `Conn.ResetSession` method and `Hooks.ResetSession`
+	// methods are not called.
+	PreResetSession func(c context.Context, conn *Conn) (interface{}, error)
+
+	// ResetSession is called after the underlying driver's `Conn.ResetSession` method
+	// returns without any errors.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreResetSession` method, and may be nil.
+	//
+	// If this callback returns an error, then the error from this
+	// callback is returned by the `Cpnn.ResetSession` method.
+	ResetSession func(c context.Context, ctx interface{}, conn *Conn) error
+
+	// PostResetSession is a callback that gets called at the end of
+	// the call to `Conn.ResetSession`. It is ALWAYS called.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreResetSession` method, and may be nil.
+	PostResetSession func(c context.Context, ctx interface{}, conn *Conn, err error) error
 }
 
 func (h *HooksContext) prePing(c context.Context, conn *Conn) (interface{}, error) {
@@ -412,6 +482,48 @@ func (h *HooksContext) postRollback(c context.Context, ctx interface{}, tx *Tx, 
 		return nil
 	}
 	return h.PostRollback(c, ctx, tx, err)
+}
+
+func (h *HooksContext) preClose(c context.Context, conn *Conn) (interface{}, error) {
+	if h == nil || h.PreClose == nil {
+		return nil, nil
+	}
+	return h.PreClose(c, conn)
+}
+
+func (h *HooksContext) close(c context.Context, ctx interface{}, conn *Conn) error {
+	if h == nil || h.Close == nil {
+		return nil
+	}
+	return h.Close(c, ctx, conn)
+}
+
+func (h *HooksContext) postClose(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	if h == nil || h.PostClose == nil {
+		return nil
+	}
+	return h.PostClose(c, ctx, conn, err)
+}
+
+func (h *HooksContext) preResetSession(c context.Context, conn *Conn) (interface{}, error) {
+	if h == nil || h.PreResetSession == nil {
+		return nil, nil
+	}
+	return h.PreResetSession(c, conn)
+}
+
+func (h *HooksContext) resetSession(c context.Context, ctx interface{}, conn *Conn) error {
+	if h == nil || h.ResetSession == nil {
+		return nil
+	}
+	return h.ResetSession(c, ctx, conn)
+}
+
+func (h *HooksContext) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	if h == nil || h.PostResetSession == nil {
+		return nil
+	}
+	return h.PostResetSession(c, ctx, conn, err)
 }
 
 // Hooks is callback functions for the proxy.
@@ -776,6 +888,30 @@ func (h *Hooks) postRollback(c context.Context, ctx interface{}, tx *Tx, err err
 	return h.PostRollback(ctx, tx)
 }
 
+func (h *Hooks) preClose(c context.Context, conn *Conn) (interface{}, error) {
+	return nil, nil
+}
+
+func (h *Hooks) close(c context.Context, ctx interface{}, conn *Conn) error {
+	return nil
+}
+
+func (h *Hooks) postClose(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return nil
+}
+
+func (h *Hooks) preResetSession(c context.Context, conn *Conn) (interface{}, error) {
+	return nil, nil
+}
+
+func (h *Hooks) resetSession(c context.Context, ctx interface{}, conn *Conn) error {
+	return nil
+}
+
+func (h *Hooks) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return nil
+}
+
 type multipleHooks []hooks
 
 func (h multipleHooks) preDo(f func(h hooks) (interface{}, error)) (interface{}, error) {
@@ -955,6 +1091,42 @@ func (h multipleHooks) rollback(c context.Context, ctx interface{}, tx *Tx) erro
 func (h multipleHooks) postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
 		return h.postRollback(c, ctx, tx, err)
+	})
+}
+
+func (h multipleHooks) preClose(c context.Context, conn *Conn) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preClose(c, conn)
+	})
+}
+
+func (h multipleHooks) close(c context.Context, ctx interface{}, conn *Conn) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.close(c, ctx, conn)
+	})
+}
+
+func (h multipleHooks) postClose(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postClose(c, ctx, conn, err)
+	})
+}
+
+func (h multipleHooks) preResetSession(c context.Context, conn *Conn) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preResetSession(c, conn)
+	})
+}
+
+func (h multipleHooks) resetSession(c context.Context, ctx interface{}, conn *Conn) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.resetSession(c, ctx, conn)
+	})
+}
+
+func (h multipleHooks) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postResetSession(c, ctx, conn, err)
 	})
 }
 
