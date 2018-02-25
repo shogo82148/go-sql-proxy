@@ -1164,7 +1164,6 @@ func NewProxyContext(driver driver.Driver, hs ...*HooksContext) *Proxy {
 	case len(hs) == 0:
 		return &Proxy{
 			Driver: driver,
-			hooks:  (*Hooks)(nil),
 		}
 	case len(hs) == 1 && hs[0] != nil:
 		return &Proxy{
@@ -1223,14 +1222,16 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 
 	var conn driver.Conn
 
-	// Setup PostOpen. This needs to be a closure like this
-	// or otherwise changes to the `ctx` and `conn` parameters
-	// within this Open() method does not get applied at the
-	// time defer is fired
-	defer func() { p.hooks.postOpen(c, ctx, conn, err) }()
+	if p.hooks != nil {
+		// Setup PostOpen. This needs to be a closure like this
+		// or otherwise changes to the `ctx` and `conn` parameters
+		// within this Open() method does not get applied at the
+		// time defer is fired
+		defer func() { p.hooks.postOpen(c, ctx, conn, err) }()
 
-	if ctx, err = p.hooks.preOpen(c, name); err != nil {
-		return nil, err
+		if ctx, err = p.hooks.preOpen(c, name); err != nil {
+			return nil, err
+		}
 	}
 	conn, err = p.Driver.Open(name)
 	if err != nil {
@@ -1242,9 +1243,11 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 		Proxy: p,
 	}
 
-	if err = p.hooks.open(c, ctx, conn); err != nil {
-		conn.Close()
-		return nil, err
+	if p.hooks != nil {
+		if err = p.hooks.open(c, ctx, conn); err != nil {
+			conn.Close()
+			return nil, err
+		}
 	}
 	return conn, nil
 }

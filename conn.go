@@ -77,7 +77,26 @@ func (conn *Conn) PrepareContext(c context.Context, query string) (driver.Stmt, 
 
 // Close calls the original Close method.
 func (conn *Conn) Close() error {
-	return conn.Conn.Close()
+	ctx := context.Background()
+	var err error
+	var myctx interface{}
+
+	if hooks := conn.Proxy.hooks; hooks != nil {
+		defer func() { hooks.postClose(ctx, myctx, conn, err) }()
+		if myctx, err = hooks.preClose(ctx, conn); err != nil {
+			return err
+		}
+	}
+
+	err = conn.Conn.Close()
+	if err != nil {
+		return err
+	}
+
+	if hooks := conn.Proxy.hooks; hooks != nil {
+		err = hooks.postClose(ctx, myctx, conn, err)
+	}
+	return err
 }
 
 // Begin starts and returns a new transaction which is wrapped by Tx.
