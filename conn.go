@@ -94,7 +94,7 @@ func (conn *Conn) Close() error {
 	}
 
 	if hooks := conn.Proxy.hooks; hooks != nil {
-		err = hooks.postClose(ctx, myctx, conn, err)
+		err = hooks.close(ctx, myctx, conn)
 	}
 	return err
 }
