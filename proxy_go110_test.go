@@ -1,3 +1,5 @@
+// +build go1.10
+
 package proxy
 
 import (
@@ -21,6 +23,15 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	}
 	if err := h.postOpen(c, ctx, nil, nil); err != nil {
 		t.Error("postOpen returns error: ", err)
+	}
+	if ctx2, err := h.prePing(c, nil); ctx2 != ctx || err != nil {
+		t.Errorf("prePing returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.ping(c, ctx, nil); err != nil {
+		t.Error("ping returns error: ", err)
+	}
+	if err := h.postPing(c, ctx, nil, nil); err != nil {
+		t.Error("postPing returns erorr: ", err)
 	}
 	if ctx2, err := h.preExec(c, nil, nil); ctx2 != ctx || err != nil {
 		t.Errorf("preExec returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
@@ -67,6 +78,24 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postRollback(c, ctx, nil, nil); err != nil {
 		t.Error("postRollback returns error: ", err)
 	}
+	if ctx2, err := h.preClose(c, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preClose returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.close(c, ctx, nil); err != nil {
+		t.Error("close returns error: ", err)
+	}
+	if err := h.postClose(c, ctx, nil, nil); err != nil {
+		t.Error("postClose returns erorr: ", err)
+	}
+	if ctx2, err := h.preResetSession(c, nil); ctx2 != ctx || err != nil {
+		t.Errorf("preResetSession returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
+	}
+	if err := h.resetSession(c, ctx, nil); err != nil {
+		t.Error("resetSession returns error: ", err)
+	}
+	if err := h.postResetSession(c, ctx, nil, nil); err != nil {
+		t.Error("postResetSession returns erorr: ", err)
+	}
 }
 
 func TestNilHooksContext(t *testing.T) {
@@ -88,6 +117,17 @@ func TestHooksContext(t *testing.T) {
 		}
 	}
 	testHooksInterface(t, &HooksContext{
+		PrePing: func(c context.Context, conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		Ping: func(c context.Context, ctx interface{}, conn *Conn) error {
+			checkCtx("Ping", ctx)
+			return nil
+		},
+		PostPing: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostPing", ctx)
+			return err
+		},
 		PreOpen: func(c context.Context, name string) (interface{}, error) {
 			return ctx0, nil
 		},
@@ -154,6 +194,28 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("PostRollback", ctx)
 			return err
 		},
+		PreClose: func(c context.Context, conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		Close: func(c context.Context, ctx interface{}, conn *Conn) error {
+			checkCtx("Close", ctx)
+			return nil
+		},
+		PostClose: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostClose", ctx)
+			return err
+		},
+		PreResetSession: func(c context.Context, conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		ResetSession: func(c context.Context, ctx interface{}, conn *Conn) error {
+			checkCtx("ResetSession", ctx)
+			return nil
+		},
+		PostResetSession: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostResetSession", ctx)
+			return err
+		},
 	}, ctx0)
 }
 
@@ -176,6 +238,17 @@ func TestHooks(t *testing.T) {
 		}
 	}
 	testHooksInterface(t, &Hooks{
+		PrePing: func(conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		Ping: func(ctx interface{}, conn *Conn) error {
+			checkCtx("Ping", ctx)
+			return nil
+		},
+		PostPing: func(ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostPing", ctx)
+			return err
+		},
 		PreOpen: func(name string) (interface{}, error) {
 			return ctx0, nil
 		},
@@ -242,6 +315,28 @@ func TestHooks(t *testing.T) {
 			checkCtx("PostRollback", ctx)
 			return nil
 		},
+		PreClose: func(conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		Close: func(ctx interface{}, conn *Conn) error {
+			checkCtx("Close", ctx)
+			return nil
+		},
+		PostClose: func(ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostClose", ctx)
+			return err
+		},
+		PreResetSession: func(conn *Conn) (interface{}, error) {
+			return ctx0, nil
+		},
+		ResetSession: func(ctx interface{}, conn *Conn) error {
+			checkCtx("ResetSession", ctx)
+			return nil
+		},
+		PostResetSession: func(ctx interface{}, conn *Conn, err error) error {
+			checkCtx("PostResetSession", ctx)
+			return err
+		},
 	}, ctx0)
 }
 
@@ -257,8 +352,10 @@ func TestFakeDB(t *testing.T) {
 			opt: &fakeConnOption{
 				Name: "pingAll",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePing]\n[Ping]\n[PostPing]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				return db.Ping()
 			},
@@ -267,8 +364,10 @@ func TestFakeDB(t *testing.T) {
 			opt: &fakeConnOption{
 				Name: "execAll",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
 				return err
@@ -279,8 +378,10 @@ func TestFakeDB(t *testing.T) {
 				Name:     "execError",
 				FailExec: true,
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
 				if err == nil {
@@ -293,8 +394,10 @@ func TestFakeDB(t *testing.T) {
 			opt: &fakeConnOption{
 				Name: "execError-NamedValue",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				// this Exec will fail, because the driver doesn't support sql.Named()
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", sql.Named("foo", 123456789))
@@ -308,8 +411,8 @@ func TestFakeDB(t *testing.T) {
 			opt: &fakeConnOption{
 				Name: "queryAll",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
 				return err
@@ -320,8 +423,10 @@ func TestFakeDB(t *testing.T) {
 				Name:      "queryError",
 				FailQuery: true,
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[PostQuery]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreQuery]\n[PostQuery]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
 				if err == nil {
@@ -334,7 +439,9 @@ func TestFakeDB(t *testing.T) {
 			opt: &fakeConnOption{
 				Name: "prepare",
 			},
-			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
 				if err != nil {
@@ -349,7 +456,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+				"[PreCommit]\n[Commit]\n[PostCommit]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				tx, err := db.Begin()
 				if err != nil {
@@ -364,7 +473,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
+				"[PreRollback]\n[Rollback]\n[PostRollback]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				tx, err := db.Begin()
 				if err != nil {
@@ -378,7 +489,9 @@ func TestFakeDB(t *testing.T) {
 				Name: "begin-isolation",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
-				"[PreBegin]\n[PostBegin]\n",
+				"[PreBegin]\n[PostBegin]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -397,7 +510,9 @@ func TestFakeDB(t *testing.T) {
 				Name: "begin-readonly",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
-				"[PreBegin]\n[PostBegin]\n",
+				"[PreBegin]\n[PostBegin]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -418,8 +533,10 @@ func TestFakeDB(t *testing.T) {
 				Name:     "execAll-ext",
 				ConnType: "fakeConnExt",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
 				return err
@@ -431,8 +548,10 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnExt",
 				FailExec: true,
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
 				if err == nil {
@@ -459,8 +578,10 @@ func TestFakeDB(t *testing.T) {
 				ConnType:  "fakeConnExt",
 				FailQuery: true,
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[PostQuery]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreQuery]\n[PostQuery]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
 				if err == nil {
@@ -474,8 +595,11 @@ func TestFakeDB(t *testing.T) {
 				Name:     "prepare-ext",
 				ConnType: "fakeConnExt",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
 				if err != nil {
@@ -493,8 +617,10 @@ func TestFakeDB(t *testing.T) {
 				Name:     "pingAll-ctx",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PrePing]\n[Ping]\n[PostPing]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePing]\n[Ping]\n[PostPing]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				return db.Ping()
 			},
@@ -504,8 +630,10 @@ func TestFakeDB(t *testing.T) {
 				Name:     "execAll-ctx",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
 				return err
@@ -516,8 +644,10 @@ func TestFakeDB(t *testing.T) {
 				Name:     "execAll-NamedValue-ctx",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)", sql.Named("foo", 123456789))
 				return err
@@ -528,8 +658,8 @@ func TestFakeDB(t *testing.T) {
 				Name:     "queryAll-ctx",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n" +
-				"[Open]\n[PostOpen]\n[PreQuery]\n[Query]\n[PostQuery]\n",
+			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
 				return err
@@ -541,7 +671,10 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnCtx",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
-				"[PreExec]\n[Exec]\n[PostExec]\n",
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreExec]\n[Exec]\n[PostExec]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("CREATE TABLE t1 (id INTEGER PRIMARY KEY)")
 				if err != nil {
@@ -558,6 +691,7 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnCtx",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
 				"[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
@@ -583,7 +717,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+				"[PreCommit]\n[Commit]\n[PostCommit]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				tx, err := db.Begin()
 				if err != nil {
@@ -599,7 +735,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreRollback]\n[Rollback]\n[PostRollback]\n",
+				"[PreRollback]\n[Rollback]\n[PostRollback]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				tx, err := db.Begin()
 				if err != nil {
@@ -615,7 +753,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+				"[PreCommit]\n[Commit]\n[PostCommit]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -635,7 +775,9 @@ func TestFakeDB(t *testing.T) {
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
 				"[PreBegin]\n[Begin]\n[PostBegin]\n" +
-				"[PreCommit]\n[Commit]\n[PostCommit]\n",
+				"[PreCommit]\n[Commit]\n[PostCommit]\n" +
+				"[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -653,7 +795,8 @@ func TestFakeDB(t *testing.T) {
 				Name:     "context-with-no-hooks",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			hooksLog: "[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				// remove the hooks from the current context.
 				// Exec will not be logged.
@@ -667,7 +810,8 @@ func TestFakeDB(t *testing.T) {
 				Name:     "context-with-hooks",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n",
+			hooksLog: "[PreResetSession]\n[ResetSession]\n[PostResetSession]\n" +
+				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				buf := &bytes.Buffer{}
 				ctx := context.WithValue(context.Background(), contextHooksKey{}, newLoggingHook(buf))
@@ -677,7 +821,7 @@ func TestFakeDB(t *testing.T) {
 				}
 				if _, ok := db.Driver().(*Proxy); ok {
 					got := buf.String()
-					want := "[PreExec]\n[Exec]\n[PostExec]\n"
+					want := "[PreOpen]\n[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n"
 					if got != want {
 						return fmt.Errorf("want %s, got %s", want, got)
 					}
@@ -712,6 +856,7 @@ func TestFakeDB(t *testing.T) {
 			if err = tc.f(db); err != nil {
 				t.Error(err)
 			}
+			db.Close()
 
 			// Run test queris via a proxy
 			tc.opt.Name = fmt.Sprintf("%s-proxy-%s", testName, name)
@@ -723,6 +868,7 @@ func TestFakeDB(t *testing.T) {
 			if err = tc.f(dbProxy); err != nil {
 				t.Error(err)
 			}
+			dbProxy.Close()
 
 			// check the logs
 			want := fdriver.DB(string(dbName)).LogToString()
