@@ -49,7 +49,7 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 			return nil, err
 		}
 	}
-	return conn, nil
+	return myconn, nil
 }
 
 // Driver returns the underlying Driver of the Connector.

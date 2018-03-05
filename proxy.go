@@ -1371,5 +1371,5 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 			return nil, err
 		}
 	}
-	return conn, nil
+	return myconn, nil
 }
