@@ -340,13 +340,6 @@ func TestHooks(t *testing.T) {
 	}, ctx0)
 }
 
-func TestMultipleHooks(t *testing.T) {
-	testHooksInterface(t, &multipleHooks{
-		&HooksContext{},
-		&HooksContext{},
-	}, nil)
-}
-
 func TestFakeDB(t *testing.T) {
 	testName := t.Name()
 	testCases := []struct {
