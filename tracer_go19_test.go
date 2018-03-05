@@ -1,3 +1,5 @@
+// +build !go1.10
+
 package proxy_test
 
 import (
@@ -13,7 +15,7 @@ import (
 	"github.com/shogo82148/txmanager"
 )
 
-var illegalSQLError = `tracer_test.go:\d+: Exec 0x[0-9a-f]+: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" `
+var illegalSQLError = `tracer_go19_test.go:\d+: Exec 0x[0-9a-f]+: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" `
 
 func TestTraceProxy(t *testing.T) {
 	buf := &bytes.Buffer{}

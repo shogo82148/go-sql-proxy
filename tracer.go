@@ -93,14 +93,14 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreOpen: func(_ context.Context, _ string) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostOpen: func(_ context.Context, ctx interface{}, conn driver.Conn, err error) error {
+		PostOpen: func(_ context.Context, ctx interface{}, conn *Conn, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			fmt.Fprintf(buf, "Open %p", conn)
+			fmt.Fprintf(buf, "Open %p", conn.Conn)
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
@@ -219,6 +219,50 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
 			fmt.Fprintf(buf, "Rollback %p", tx.Conn.Conn)
+			if err != nil {
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
+			}
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			s := buf.String()
+			pool.Put(buf)
+			o.Output(findCaller(f), s)
+			return nil
+		},
+		PreClose: func(_ context.Context, _ *Conn) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostClose: func(_ context.Context, ctx interface{}, conn *Conn, err error) error {
+			d := time.Since(ctx.(time.Time))
+			if d < opt.SlowQuery {
+				return nil
+			}
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			fmt.Fprintf(buf, "Close %p", conn.Conn)
+			if err != nil {
+				fmt.Fprintf(buf, "; err = %#v", err.Error())
+			}
+			io.WriteString(buf, " (")
+			io.WriteString(buf, d.String())
+			io.WriteString(buf, ")")
+			s := buf.String()
+			pool.Put(buf)
+			o.Output(findCaller(f), s)
+			return nil
+		},
+		PreResetSession: func(_ context.Context, _ *Conn) (interface{}, error) {
+			return time.Now(), nil
+		},
+		PostResetSession: func(_ context.Context, ctx interface{}, conn *Conn, err error) error {
+			d := time.Since(ctx.(time.Time))
+			if d < opt.SlowQuery {
+				return nil
+			}
+			buf := pool.Get().(*bytes.Buffer)
+			buf.Reset()
+			fmt.Fprintf(buf, "ResetSession %p", conn.Conn)
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}

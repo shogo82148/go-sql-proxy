@@ -47,14 +47,14 @@ func (h *loggingHook) preOpen(c context.Context, name string) (interface{}, erro
 	return nil, nil
 }
 
-func (h *loggingHook) open(c context.Context, ctx interface{}, conn driver.Conn) error {
+func (h *loggingHook) open(c context.Context, ctx interface{}, conn *Conn) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[Open]")
 	return nil
 }
 
-func (h *loggingHook) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+func (h *loggingHook) postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostOpen]")

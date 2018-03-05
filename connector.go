@@ -20,6 +20,7 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	var err error
 	var myctx interface{}
 	var conn driver.Conn
+	var myconn *Conn
 	hooks := c.Proxy.getHooks(ctx)
 
 	if hooks != nil {
@@ -27,7 +28,7 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 		// or otherwise changes to the `ctx` and `conn` parameters
 		// within this Open() method does not get applied at the
 		// time defer is fired
-		defer func() { hooks.postOpen(ctx, myctx, conn, err) }()
+		defer func() { hooks.postOpen(ctx, myctx, myconn, err) }()
 		if myctx, err = hooks.preOpen(ctx, c.Name); err != nil {
 			return nil, err
 		}
@@ -37,13 +38,13 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 		return nil, err
 	}
 
-	conn = &Conn{
+	myconn = &Conn{
 		Conn:  conn,
 		Proxy: c.Proxy,
 	}
 
 	if hooks != nil {
-		if err = hooks.open(ctx, myctx, conn); err != nil {
+		if err = hooks.open(ctx, myctx, myconn); err != nil {
 			conn.Close()
 			return nil, err
 		}
