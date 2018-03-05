@@ -13,6 +13,7 @@ type Stmt struct {
 
 	QueryString string
 	Proxy       *Proxy
+	Conn        *Conn
 }
 
 // Close closes the statement.

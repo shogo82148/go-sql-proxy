@@ -93,14 +93,14 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreOpen: func(_ context.Context, _ string) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostOpen: func(_ context.Context, ctx interface{}, _ driver.Conn, err error) error {
+		PostOpen: func(_ context.Context, ctx interface{}, conn driver.Conn, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			io.WriteString(buf, "Open")
+			fmt.Fprintf(buf, "Open %p", conn)
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
@@ -122,7 +122,7 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			io.WriteString(buf, "Exec: ")
+			fmt.Fprintf(buf, "Exec %p: ", stmt.Conn.Conn)
 			io.WriteString(buf, stmt.QueryString)
 			io.WriteString(buf, "; args = [")
 			writeNamedValues(buf, args)
@@ -148,7 +148,7 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			io.WriteString(buf, "Query: ")
+			fmt.Fprintf(buf, "Query %p: ", stmt.Conn.Conn)
 			io.WriteString(buf, stmt.QueryString)
 			io.WriteString(buf, "; args = [")
 			writeNamedValues(buf, args)
@@ -167,14 +167,14 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreBegin: func(_ context.Context, _ *Conn) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostBegin: func(_ context.Context, ctx interface{}, _ *Conn, err error) error {
+		PostBegin: func(_ context.Context, ctx interface{}, conn *Conn, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			io.WriteString(buf, "Begin")
+			fmt.Fprintf(buf, "Begin %p", conn.Conn)
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
@@ -189,14 +189,14 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreCommit: func(_ context.Context, _ *Tx) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostCommit: func(_ context.Context, ctx interface{}, _ *Tx, err error) error {
+		PostCommit: func(_ context.Context, ctx interface{}, tx *Tx, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			io.WriteString(buf, "Commit")
+			fmt.Fprintf(buf, "Commit %p", tx.Conn.Conn)
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
@@ -211,14 +211,14 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 		PreRollback: func(_ context.Context, _ *Tx) (interface{}, error) {
 			return time.Now(), nil
 		},
-		PostRollback: func(_ context.Context, ctx interface{}, _ *Tx, err error) error {
+		PostRollback: func(_ context.Context, ctx interface{}, tx *Tx, err error) error {
 			d := time.Since(ctx.(time.Time))
 			if d < opt.SlowQuery {
 				return nil
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			io.WriteString(buf, "Rollback")
+			fmt.Fprintf(buf, "Rollback %p", tx.Conn.Conn)
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}

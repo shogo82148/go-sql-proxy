@@ -72,6 +72,7 @@ func (conn *Conn) PrepareContext(c context.Context, query string) (driver.Stmt, 
 		Stmt:        stmt,
 		QueryString: query,
 		Proxy:       conn.Proxy,
+		Conn:        conn,
 	}, nil
 }
 
@@ -160,6 +161,7 @@ func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, 
 	return &Tx{
 		Tx:    tx,
 		Proxy: conn.Proxy,
+		Conn:  conn,
 		ctx:   c,
 	}, nil
 }
@@ -193,6 +195,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		stmt = &Stmt{
 			QueryString: query,
 			Proxy:       conn.Proxy,
+			Conn:        conn,
 		}
 		defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
 		if ctx, err = hooks.preExec(c, stmt, args); err != nil {
@@ -256,6 +259,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 		stmt := &Stmt{
 			QueryString: query,
 			Proxy:       conn.Proxy,
+			Conn:        conn,
 		}
 		defer func() { hooks.postQuery(c, ctx, stmt, args, rows, err) }()
 		if ctx, err = hooks.preQuery(c, stmt, args); err != nil {
