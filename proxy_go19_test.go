@@ -181,11 +181,11 @@ func TestHooks(t *testing.T) {
 		PreOpen: func(name string) (interface{}, error) {
 			return ctx0, nil
 		},
-		Open: func(ctx interface{}, conn driver.Conn) error {
+		Open: func(ctx interface{}, conn *Conn) error {
 			checkCtx("Open", ctx)
 			return nil
 		},
-		PostOpen: func(ctx interface{}, conn driver.Conn) error {
+		PostOpen: func(ctx interface{}, conn *Conn) error {
 			checkCtx("PostOpen", ctx)
 			return nil
 		},
