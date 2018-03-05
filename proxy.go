@@ -22,8 +22,8 @@ type hooks interface {
 	ping(c context.Context, ctx interface{}, conn *Conn) error
 	postPing(c context.Context, ctx interface{}, conn *Conn, err error) error
 	preOpen(c context.Context, name string) (interface{}, error)
-	open(c context.Context, ctx interface{}, conn driver.Conn) error
-	postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error
+	open(c context.Context, ctx interface{}, conn *Conn) error
+	postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error
 	preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error)
 	exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error
 	postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error
@@ -104,14 +104,14 @@ type HooksContext struct {
 	// If this callback returns an error, then the `conn` object is
 	// closed by calling the `Close` method, and the error from this
 	// callback is returned by the `db.Open` method.
-	Open func(c context.Context, ctx interface{}, conn driver.Conn) error
+	Open func(c context.Context, ctx interface{}, conn *Conn) error
 
 	// PostOpen is a callback that gets called at the end of
 	// the call to `db.Open(). It is ALWAYS called.
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreOpen` method, and may be nil.
-	PostOpen func(c context.Context, ctx interface{}, conn driver.Conn, err error) error
+	PostOpen func(c context.Context, ctx interface{}, conn *Conn, err error) error
 
 	// PreExec is a callback that gets called prior to calling
 	// `Stmt.Exec`, and is ALWAYS called. If this callback returns an
@@ -365,14 +365,14 @@ func (h *HooksContext) preOpen(c context.Context, name string) (interface{}, err
 	return h.PreOpen(c, name)
 }
 
-func (h *HooksContext) open(c context.Context, ctx interface{}, conn driver.Conn) error {
+func (h *HooksContext) open(c context.Context, ctx interface{}, conn *Conn) error {
 	if h == nil || h.Open == nil {
 		return nil
 	}
 	return h.Open(c, ctx, conn)
 }
 
-func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostOpen == nil {
 		return nil
 	}
@@ -584,14 +584,14 @@ type Hooks struct {
 	// If this callback returns an error, then the `conn` object is
 	// closed by calling the `Close` method, and the error from this
 	// callback is returned by the `db.Open` method.
-	Open func(ctx interface{}, conn driver.Conn) error
+	Open func(ctx interface{}, conn *Conn) error
 
 	// PostOpen is a callback that gets called at the end of
 	// the call to `db.Open(). It is ALWAYS called.
 	//
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreOpen` method, and may be nil.
-	PostOpen func(ctx interface{}, conn driver.Conn) error
+	PostOpen func(ctx interface{}, conn *Conn) error
 
 	// PreExec is a callback that gets called prior to calling
 	// `Stmt.Exec`, and is ALWAYS called. If this callback returns an
@@ -868,14 +868,14 @@ func (h *Hooks) preOpen(c context.Context, name string) (interface{}, error) {
 	return h.PreOpen(name)
 }
 
-func (h *Hooks) open(c context.Context, ctx interface{}, conn driver.Conn) error {
+func (h *Hooks) open(c context.Context, ctx interface{}, conn *Conn) error {
 	if h == nil || h.Open == nil {
 		return nil
 	}
 	return h.Open(ctx, conn)
 }
 
-func (h *Hooks) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+func (h *Hooks) postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostOpen == nil {
 		return nil
 	}
@@ -1115,13 +1115,13 @@ func (h multipleHooks) preOpen(c context.Context, name string) (interface{}, err
 	})
 }
 
-func (h multipleHooks) open(c context.Context, ctx interface{}, conn driver.Conn) error {
+func (h multipleHooks) open(c context.Context, ctx interface{}, conn *Conn) error {
 	return h.do(ctx, func(h hooks, ctx interface{}) error {
 		return h.open(c, ctx, conn)
 	})
 }
 
-func (h multipleHooks) postOpen(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+func (h multipleHooks) postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
 		return h.postOpen(c, ctx, conn, err)
 	})
@@ -1260,7 +1260,6 @@ func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
 	case len(hs) == 0:
 		return &Proxy{
 			Driver: driver,
-			hooks:  (*Hooks)(nil),
 		}
 	case len(hs) == 1 && hs[0] != nil:
 		return &Proxy{
@@ -1342,15 +1341,15 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 	c := context.Background()
 	var err error
 	var ctx interface{}
-
 	var conn driver.Conn
+	var myconn *Conn
 
 	if p.hooks != nil {
 		// Setup PostOpen. This needs to be a closure like this
 		// or otherwise changes to the `ctx` and `conn` parameters
 		// within this Open() method does not get applied at the
 		// time defer is fired
-		defer func() { p.hooks.postOpen(c, ctx, conn, err) }()
+		defer func() { p.hooks.postOpen(c, ctx, myconn, err) }()
 
 		if ctx, err = p.hooks.preOpen(c, name); err != nil {
 			return nil, err
@@ -1361,16 +1360,16 @@ func (p *Proxy) Open(name string) (driver.Conn, error) {
 		return nil, err
 	}
 
-	conn = &Conn{
+	myconn = &Conn{
 		Conn:  conn,
 		Proxy: p,
 	}
 
 	if p.hooks != nil {
-		if err = p.hooks.open(c, ctx, conn); err != nil {
+		if err = p.hooks.open(c, ctx, myconn); err != nil {
 			conn.Close()
 			return nil, err
 		}
 	}
-	return conn, nil
+	return myconn, nil
 }

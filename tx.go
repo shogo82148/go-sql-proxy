@@ -9,6 +9,7 @@ import (
 type Tx struct {
 	Tx    driver.Tx
 	Proxy *Proxy
+	Conn  *Conn
 	ctx   context.Context
 }
 

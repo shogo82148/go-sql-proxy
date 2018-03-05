@@ -131,11 +131,11 @@ func TestHooksContext(t *testing.T) {
 		PreOpen: func(c context.Context, name string) (interface{}, error) {
 			return ctx0, nil
 		},
-		Open: func(c context.Context, ctx interface{}, conn driver.Conn) error {
+		Open: func(c context.Context, ctx interface{}, conn *Conn) error {
 			checkCtx("Open", ctx)
 			return nil
 		},
-		PostOpen: func(c context.Context, ctx interface{}, conn driver.Conn, err error) error {
+		PostOpen: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
 			checkCtx("PostOpen", ctx)
 			return err
 		},
@@ -252,11 +252,11 @@ func TestHooks(t *testing.T) {
 		PreOpen: func(name string) (interface{}, error) {
 			return ctx0, nil
 		},
-		Open: func(ctx interface{}, conn driver.Conn) error {
+		Open: func(ctx interface{}, conn *Conn) error {
 			checkCtx("Open", ctx)
 			return nil
 		},
-		PostOpen: func(ctx interface{}, conn driver.Conn) error {
+		PostOpen: func(ctx interface{}, conn *Conn) error {
 			checkCtx("PostOpen", ctx)
 			return nil
 		},
