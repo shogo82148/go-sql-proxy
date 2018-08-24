@@ -98,6 +98,7 @@ db, err := sql.Open("new-proxy-name", "data source")
 package main
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"log"
@@ -156,6 +157,7 @@ func main() {
 package main
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"log"
