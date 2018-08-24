@@ -109,7 +109,7 @@ import (
 
 func main() {
 	sql.Register("sqlite3-proxy", proxy.NewProxyContext(&sqlite3.SQLiteDriver{}, &proxy.HooksContext{
-		Open: func(_ context.Context, _ interface{}, conn driver.Conn) error {
+		Open: func(_ context.Context, _ interface{}, conn *proxy.Conn) error {
 			log.Println("Open")
 			return nil
 		},
