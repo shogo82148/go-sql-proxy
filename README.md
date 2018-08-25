@@ -98,6 +98,7 @@ db, err := sql.Open("new-proxy-name", "data source")
 package main
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"log"
@@ -108,7 +109,7 @@ import (
 
 func main() {
 	sql.Register("sqlite3-proxy", proxy.NewProxyContext(&sqlite3.SQLiteDriver{}, &proxy.HooksContext{
-		Open: func(_ context.Context, _ interface{}, conn driver.Conn) error {
+		Open: func(_ context.Context, _ interface{}, conn *proxy.Conn) error {
 			log.Println("Open")
 			return nil
 		},
@@ -156,6 +157,7 @@ func main() {
 package main
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"log"
