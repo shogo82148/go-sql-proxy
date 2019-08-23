@@ -27,4 +27,5 @@ jobs:
     - name: Test
       run: |
         go get github.com/mattn/go-sqlite3
+        go get github.com/shogo82148/txmanager
         go test -v .
