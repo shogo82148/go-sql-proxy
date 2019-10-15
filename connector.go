@@ -24,11 +24,6 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	hooks := c.Proxy.getHooks(ctx)
 
 	if hooks != nil {
-		// Setup PostOpen. This needs to be a closure like this
-		// or otherwise changes to the `ctx` and `conn` parameters
-		// within this Open() method does not get applied at the
-		// time defer is fired
-		defer func() { hooks.postOpen(ctx, myctx, myconn, err) }()
 		if myctx, err = hooks.preOpen(ctx, c.Name); err != nil {
 			return nil, err
 		}
@@ -44,6 +39,12 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	}
 
 	if hooks != nil {
+		// Setup PostOpen. This needs to be a closure like this
+		// or otherwise changes to the `ctx` and `conn` parameters
+		// within this Open() method does not get applied at the
+		// time defer is fired
+		defer func() { hooks.postOpen(ctx, myctx, myconn, err) }()
+
 		if err = hooks.open(ctx, myctx, myconn); err != nil {
 			conn.Close()
 			return nil, err
