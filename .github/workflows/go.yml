@@ -43,4 +43,4 @@ jobs:
       - name: finish
         env:
           COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: curl "https://coveralls.io/webhook?repo_token=$COVERALLS_TOKEN&repo_name=$GITHUB_REPOSITORY" -d "payload[build_num]=$GITHUB_SHA&payload[status]=done"
+        run: curl -sS "https://coveralls.io/webhook" -d "repo_token=$COVERALLS_TOKEN&repo_name=$GITHUB_REPOSITORY&payload[build_num]=$GITHUB_SHA&payload[status]=done"
