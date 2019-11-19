@@ -34,7 +34,7 @@ jobs:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         GO111MODULE=off go get github.com/shogo82148/goveralls
-        $(go env GOPATH)/bin/goveralls -coverprofile=profile.cov -parallel -jobid=$GITHUB_SHA -jobnumber=${{ strategy.job-index }} -service=github
+        $(go env GOPATH)/bin/goveralls -coverprofile=profile.cov -parallel -jobid=$GITHUB_SHA -service=github
 
   finish:
     needs: test
