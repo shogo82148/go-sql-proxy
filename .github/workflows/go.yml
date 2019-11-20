@@ -6,10 +6,12 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         go:
         - '1.11'
         - '1.12'
+        - '1.13'
 
     steps:
 
@@ -23,6 +25,24 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Test
-      run: go test -v .
+      run: go test -v -coverprofile=profile.cov .
       env:
         GO111MODULE: "on"
+
+    - name: Send coverage
+      uses: shogo82148/actions-goveralls@v0.0.2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-profile: profile.cov
+        parallel: true
+        job-number: ${{ strategy.job-index }}
+
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - name: finish
+      uses: shogo82148/actions-goveralls@v0.0.2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
