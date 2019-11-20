@@ -45,4 +45,4 @@ jobs:
       uses: shogo82148/actions-goveralls@v0.0.2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel-finish: true
+        parallel-finished: true
