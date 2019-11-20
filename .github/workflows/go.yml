@@ -30,17 +30,19 @@ jobs:
         GO111MODULE: "on"
 
     - name: Send coverage
-      env:
-        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        GO111MODULE=off go get github.com/shogo82148/goveralls
-        $(go env GOPATH)/bin/goveralls -coverprofile=profile.cov -parallel -jobid=$GITHUB_SHA -service=github
+      uses: shogo82148/actions-goveralls@v0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-profile: profile.cov
+        parallel: true
+        job-number: ${{ strategy.job-index }}
 
   finish:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - name: finish
-        env:
-          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: curl -sS "https://coveralls.io/webhook" -d "repo_token=$COVERALLS_TOKEN&repo_name=$GITHUB_REPOSITORY&payload[build_num]=$GITHUB_SHA&payload[status]=done"
+    - name: finish
+      uses: shogo82148/actions-goveralls@v0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finish: true
