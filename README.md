@@ -1,6 +1,6 @@
 # go-sql-proxy
 
-[![Build Status](https://travis-ci.org/shogo82148/go-sql-proxy.svg?branch=master)](https://travis-ci.org/shogo82148/go-sql-proxy)
+[![Build Status](https://github.com/shogo82148/go-sql-proxy/workflows/Test/badge.svg?branch=master)](https://github.com/shogo82148/go-sql-proxy/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/shogo82148/go-sql-proxy)](https://goreportcard.com/report/github.com/shogo82148/go-sql-proxy)
 [![Godoc](https://godoc.org/github.com/shogo82148/go-sql-proxy?status.svg)](https://godoc.org/github.com/shogo82148/go-sql-proxy)
 [![Coverage Status](https://coveralls.io/repos/github/shogo82148/go-sql-proxy/badge.svg?branch=master)](https://coveralls.io/github/shogo82148/go-sql-proxy?branch=master)
