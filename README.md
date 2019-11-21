@@ -5,7 +5,7 @@
 [![Godoc](https://godoc.org/github.com/shogo82148/go-sql-proxy?status.svg)](https://godoc.org/github.com/shogo82148/go-sql-proxy)
 [![Coverage Status](https://coveralls.io/repos/github/shogo82148/go-sql-proxy/badge.svg?branch=master)](https://coveralls.io/github/shogo82148/go-sql-proxy?branch=master)
 
-A proxy package is a proxy driver for dabase/sql.
+A proxy package is a proxy driver for database/sql.
 You can hook SQL execution.
 
 ## SYNOPSIS
