@@ -1,4 +1,0 @@
-github.com/mattn/go-sqlite3 v1.13.0 h1:LnJI81JidiW9r7pS/hXe6cFeO5EXNq7KbfvoJLRI69c=
-github.com/mattn/go-sqlite3 v1.13.0/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
-github.com/shogo82148/txmanager v0.0.1 h1:a7WBCfX+CXZ2EZQOzTa6hr2AHVgHFoZGNQQKA32Ehow=
-github.com/shogo82148/txmanager v0.0.1/go.mod h1:vMuS1iY1BDbH6Y6tXhKIWLQDYScp9b6rpMYWkAI3xt8=
