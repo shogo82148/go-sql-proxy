@@ -40,11 +40,10 @@ func (f PackageFilter) Ignore(packageName string) {
 // DefaultPackageFilter ignores some database util package.
 var DefaultPackageFilter = PackageFilter{
 	"database/sql":                       struct{}{},
-	"github.com/shogo82148/txmanager":    struct{}{},
 	"github.com/shogo82148/go-sql-proxy": struct{}{},
 }
 
-// TracerOptions holds the tarcing option.
+// TracerOptions holds the tracing option.
 type TracerOptions struct {
 	// Outputter is the output of the log.
 	// If is nil nil, log.Output is used.
@@ -100,7 +99,11 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			fmt.Fprintf(buf, "Open %p", conn.Conn)
+			if conn != nil {
+				fmt.Fprintf(buf, "Open %p", conn.Conn)
+			} else {
+				fmt.Fprint(buf, "Open nil")
+			}
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
@@ -318,8 +321,7 @@ func findCaller(f Filter) int {
 			}
 			packageName := name[:dotIdx]
 			if f.DoOutput(packageName) {
-				// -1 because the meaning of skip differs between Caller and Callers.
-				return skip + i - 1
+				return skip + i
 			}
 		}
 		if n < len(rpc) {

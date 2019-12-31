@@ -10,19 +10,18 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/mattn/go-sqlite3"
-	"github.com/shogo82148/go-sql-proxy"
-	"github.com/shogo82148/txmanager"
+	proxy "github.com/shogo82148/go-sql-proxy"
 )
 
 var illegalSQLError = `tracer_go110_test.go:\d+: Exec 0x[0-9a-f]+: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" `
 
 func TestTraceProxy(t *testing.T) {
 	buf := &bytes.Buffer{}
-	logger := log.New(buf, "", log.Lshortfile)
-	sql.Register("sqlite3-trace-proxy", proxy.NewTraceProxy(&sqlite3.SQLiteDriver{}, logger))
+	log.SetOutput(buf)
+	log.SetFlags(log.Lshortfile)
+	proxy.RegisterTracer()
 
-	db, err := sql.Open("sqlite3-trace-proxy", ":memory:")
+	db, err := sql.Open("fakedb:trace", `{"name":"trace"}`)
 	if err != nil {
 		t.Fatalf("Open filed: %v", err)
 	}
@@ -34,43 +33,36 @@ func TestTraceProxy(t *testing.T) {
 		t.Fatalf("create table failed: %v", err)
 	}
 
-	dbm := txmanager.NewDB(db)
-	txmanager.Do(dbm, func(tx txmanager.Tx) error {
-		_, err := tx.Exec("INSERT INTO t1 (id) VALUES(?)", 1)
-		return err
-	})
+	err = func() error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		if _, err := tx.Exec("INSERT INTO t1 (id) VALUES(?)", 1); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}()
 	if err != nil {
 		t.Fatalf("do failed: %v", err)
 	}
 
-	row := dbm.QueryRow("SELECT id FROM t1 WHERE id = ?", 1)
-	var id int
-	if err = row.Scan(&id); err != nil {
-		t.Fatalf("selecting row failed: %v", err)
-	}
-	if id != 1 {
-		t.Errorf("got %d\nwant 1", id)
-	}
-
-	_, err = dbm.Exec("ILLEGAL SQL")
-	if err == nil {
-		t.Error("got no error, want error")
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
 	}
 
 	timeComponent := `\(\d+(?:\.\d+)?[^\)]+\)`
 	expected := []*regexp.Regexp{
-		// Fake time compinent with (\d+\.\d+[^\)]+)
-		regexp.MustCompile(`tracer_go110_test.go:\d+: Open 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:\d+: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
+		// Fake time component with (\d+\.\d+[^\)]+)
+		regexp.MustCompile(`tracer_go110_test.go:29: Open 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:29: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:\d+: Begin 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:\d+: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:\d+: Commit 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:37: Begin 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:42: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:45: Commit 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:\d+: Query 0x[0-9a-f]+: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(illegalSQLError + timeComponent),
-		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:51: Close 0x[0-9a-f]+ ` + timeComponent),
 	}
 
 	scanner := bufio.NewScanner(buf)

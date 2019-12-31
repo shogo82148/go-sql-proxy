@@ -31,7 +31,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 		t.Error("ping returns error: ", err)
 	}
 	if err := h.postPing(c, ctx, nil, nil); err != nil {
-		t.Error("postPing returns erorr: ", err)
+		t.Error("postPing returns error: ", err)
 	}
 	if ctx2, err := h.preExec(c, nil, nil); ctx2 != ctx || err != nil {
 		t.Errorf("preExec returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
@@ -85,7 +85,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 		t.Error("close returns error: ", err)
 	}
 	if err := h.postClose(c, ctx, nil, nil); err != nil {
-		t.Error("postClose returns erorr: ", err)
+		t.Error("postClose returns error: ", err)
 	}
 	if ctx2, err := h.preResetSession(c, nil); ctx2 != ctx || err != nil {
 		t.Errorf("preResetSession returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
@@ -94,7 +94,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 		t.Error("resetSession returns error: ", err)
 	}
 	if err := h.postResetSession(c, ctx, nil, nil); err != nil {
-		t.Error("postResetSession returns erorr: ", err)
+		t.Error("postResetSession returns error: ", err)
 	}
 }
 
