@@ -13,8 +13,6 @@ import (
 	proxy "github.com/shogo82148/go-sql-proxy"
 )
 
-var illegalSQLError = `tracer_go110_test.go:\d+: Exec 0x[0-9a-f]+: ILLEGAL SQL; args = \[\]; err = "near \\"ILLEGAL\\": syntax error" `
-
 func TestTraceProxy(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log.SetOutput(buf)
@@ -55,14 +53,14 @@ func TestTraceProxy(t *testing.T) {
 	timeComponent := `\(\d+(?:\.\d+)?[^\)]+\)`
 	expected := []*regexp.Regexp{
 		// Fake time component with (\d+\.\d+[^\)]+)
-		regexp.MustCompile(`tracer_go110_test.go:29: Open 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:29: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:27: Open 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:27: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:37: Begin 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:42: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:45: Commit 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:35: Begin 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:40: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:43: Commit 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_go110_test.go:51: Close 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_go110_test.go:49: Close 0x[0-9a-f]+ ` + timeComponent),
 	}
 
 	scanner := bufio.NewScanner(buf)
