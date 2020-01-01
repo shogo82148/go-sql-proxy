@@ -26,8 +26,7 @@ func findCaller(f Filter) int {
 			}
 			packageName := name[:dotIdx]
 			if f.DoOutput(packageName) {
-				// -1 because the meaning of skip differs between Caller and Callers.
-				return skip + i - 1
+				return skip + i
 			}
 		}
 		if n < len(rpc) {
