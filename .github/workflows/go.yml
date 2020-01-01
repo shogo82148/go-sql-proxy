@@ -11,7 +11,7 @@ jobs:
         os:
           - ubuntu-latest
           - windows-latest
-          - macos_latest
+          - macos-latest
         go:
           - '1.11'
           - '1.12'
