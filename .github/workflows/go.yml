@@ -42,7 +42,6 @@ jobs:
 
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1
-        working-directory: src/github.com/${{ github.repository }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-profile: profile.cov
