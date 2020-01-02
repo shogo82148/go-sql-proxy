@@ -25,7 +25,9 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
         id: go
-      - run: go version
+      - run: |
+          go version
+          echo ::set-env name=GOPATH::$GITHUB_WORKSPACE
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -36,7 +38,6 @@ jobs:
         run: go test -v -coverprofile=profile.cov .
         env:
           GO111MODULE: "on"
-          GOPATH: ${{ runner.workspace }}
         shell: bash
         working-directory: src/github.com/${{ github.repository }}
 
