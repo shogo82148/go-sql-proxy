@@ -6,7 +6,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
-	"runtime"
 	"sync"
 	"time"
 )
@@ -40,11 +39,10 @@ func (f PackageFilter) Ignore(packageName string) {
 // DefaultPackageFilter ignores some database util package.
 var DefaultPackageFilter = PackageFilter{
 	"database/sql":                       struct{}{},
-	"github.com/shogo82148/txmanager":    struct{}{},
 	"github.com/shogo82148/go-sql-proxy": struct{}{},
 }
 
-// TracerOptions holds the tarcing option.
+// TracerOptions holds the tracing option.
 type TracerOptions struct {
 	// Outputter is the output of the log.
 	// If is nil nil, log.Output is used.
@@ -100,7 +98,11 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			}
 			buf := pool.Get().(*bytes.Buffer)
 			buf.Reset()
-			fmt.Fprintf(buf, "Open %p", conn.Conn)
+			if conn != nil {
+				fmt.Fprintf(buf, "Open %p", conn.Conn)
+			} else {
+				fmt.Fprint(buf, "Open nil")
+			}
 			if err != nil {
 				fmt.Fprintf(buf, "; err = %#v", err.Error())
 			}
@@ -288,44 +290,4 @@ func writeNamedValues(w io.Writer, args []driver.NamedValue) {
 		}
 		fmt.Fprintf(w, "%#v", arg.Value)
 	}
-}
-
-func findCaller(f Filter) int {
-	// skip starts 4. 0: Callers, 1: findCaller, 2: hooks, 3: proxy-funcs, 4: database/sql, and equals or greater than 5: user-funcs
-	skip := 5
-	for {
-		var rpc [8]uintptr
-		var i int
-		n := runtime.Callers(skip, rpc[:])
-		frames := runtime.CallersFrames(rpc[:])
-		for i = 0; ; i++ {
-			frame, more := frames.Next()
-			if !more {
-				break
-			}
-			name := frame.Function
-			if name == "" {
-				continue
-			}
-			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
-			dotIdx := 0
-			for j := len(name) - 1; j >= 0; j-- {
-				if name[j] == '.' {
-					dotIdx = j
-				} else if name[j] == '/' {
-					break
-				}
-			}
-			packageName := name[:dotIdx]
-			if f.DoOutput(packageName) {
-				// -1 because the meaning of skip differs between Caller and Callers.
-				return skip + i - 1
-			}
-		}
-		if n < len(rpc) {
-			break
-		}
-		skip += i
-	}
-	return 0
 }
