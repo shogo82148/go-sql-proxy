@@ -7,7 +7,7 @@ import (
 )
 
 func findCaller(f Filter) int {
-	// skip starts 4. 0: Callers, 1: findCaller, 2: hooks, 3: proxy-funcs, 4: database/sql, and equals or greater than 5: user-funcs
+	// skip starts 5. 0: Callers, 1: findCaller, 2: hooks, 3: proxy-funcs, 4: database/sql, and equals or greater than 5: user-funcs
 	skip := 5
 	for {
 		var rpc [8]uintptr
@@ -26,7 +26,7 @@ func findCaller(f Filter) int {
 			}
 			packageName := name[:dotIdx]
 			if f.DoOutput(packageName) {
-				return skip + i
+				return skip + i + 1
 			}
 		}
 		if n < len(rpc) {
