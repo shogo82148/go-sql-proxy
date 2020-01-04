@@ -30,6 +30,7 @@ jobs:
       - run: |
           go version
           echo ::set-env name=GOPATH::$GITHUB_WORKSPACE
+        shell: bash
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
