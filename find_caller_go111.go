@@ -1,4 +1,4 @@
-// +build go1.12
+// +build !go1.12
 
 package proxy
 
@@ -11,19 +11,11 @@ func findCaller(f Filter) int {
 	skip := 5
 	for {
 		var rpc [8]uintptr
-		var i int
 		n := runtime.Callers(skip, rpc[:])
-		frames := runtime.CallersFrames(rpc[:])
-		for i = 0; ; i++ {
-			frame, more := frames.Next()
-			if !more {
-				break
-			}
-			name := frame.Function
-			if name == "" {
-				continue
-			}
+
+		for i, pc := range rpc[:n] {
 			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
+			name := runtime.FuncForPC(pc).Name()
 			dotIdx := 0
 			for j := len(name) - 1; j >= 0; j-- {
 				if name[j] == '.' {
@@ -34,13 +26,13 @@ func findCaller(f Filter) int {
 			}
 			packageName := name[:dotIdx]
 			if f.DoOutput(packageName) {
-				return skip + i
+				return skip + i + 1
 			}
 		}
 		if n < len(rpc) {
 			break
 		}
-		skip += i
+		skip += n
 	}
 	return 0
 }
