@@ -4,7 +4,7 @@ package proxy
 
 import (
 	"runtime"
-	"stringstrings"
+	"strings"
 )
 
 func findCaller(f Filter) int {
