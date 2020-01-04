@@ -60,7 +60,7 @@ func TestTraceProxy(t *testing.T) {
 		regexp.MustCompile(`tracer_test.go:40: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
 		regexp.MustCompile(`tracer_test.go:43: Commit 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:49: Close 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`.*:\d+: Close 0x[0-9a-f]+ ` + timeComponent),
 	}
 
 	scanner := bufio.NewScanner(buf)

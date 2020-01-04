@@ -4,6 +4,7 @@ package proxy
 
 import (
 	"runtime"
+	"strings"
 )
 
 func findCaller(f Filter) int {
@@ -16,6 +17,9 @@ func findCaller(f Filter) int {
 		for i, pc := range rpc[:n] {
 			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
 			name := runtime.FuncForPC(pc).Name()
+			if name == "" || strings.HasPrefix(name, "runtime.") {
+				continue
+			}
 			dotIdx := 0
 			for j := len(name) - 1; j >= 0; j-- {
 				if name[j] == '.' {
@@ -34,5 +38,7 @@ func findCaller(f Filter) int {
 		}
 		skip += n
 	}
-	return 0
+	// fallback to the caller
+	// 1: Outputter.Output, 2: the caller
+	return 2
 }

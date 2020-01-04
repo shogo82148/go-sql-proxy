@@ -13,6 +13,9 @@ jobs:
           - windows-latest
           - macos-latest
         go:
+          - '1.8'
+          - '1.9'
+          - '1.10'
           - '1.11'
           - '1.12'
           - '1.13'
@@ -24,24 +27,32 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
         id: go
-      - run: go version
+      - run: |
+          go version
+          echo ::set-env name=GOPATH::$GITHUB_WORKSPACE
+        shell: bash
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+        with:
+          path: src/github.com/shogo82148/go-sql-proxy
+      - run: git fetch --depth=1 origin "$GITHUB_HEAD_REF"
+        if: github.event_name == 'pull_request'
+        working-directory: src/github.com/shogo82148/go-sql-proxy
 
       - name: Test
         run: go test -v -coverprofile=profile.cov .
         env:
           GO111MODULE: "on"
         shell: bash
+        working-directory: src/github.com/shogo82148/go-sql-proxy
 
       - name: Send coverage
         uses: shogo82148/actions-goveralls@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-profile: profile.cov
           parallel: true
-          job-number: ${{ strategy.job-index }}
+          working-directory: src/github.com/shogo82148/go-sql-proxy
 
   finish:
     needs: test
@@ -50,5 +61,4 @@ jobs:
       - name: finish
         uses: shogo82148/actions-goveralls@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
