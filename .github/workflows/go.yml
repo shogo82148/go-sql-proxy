@@ -35,6 +35,7 @@ jobs:
           path: src/github.com/shogo82148/go-sql-proxy
       - run: git fetch --depth=1 origin "$GITHUB_HEAD_REF"
         if: github.event_name == 'pull_request'
+        working-directory: src/github.com/shogo82148/go-sql-proxy
 
       - name: Test
         run: go test -v -coverprofile=profile.cov .
