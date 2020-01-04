@@ -1,4 +1,4 @@
-// a proxy package is a proxy driver for dabase/sql.
+// a proxy package is a proxy driver for database/sql.
 
 package proxy
 
@@ -71,7 +71,7 @@ type HooksContext struct {
 	// `Hooks.PrePing` method, and may be nil.
 	//
 	// If this callback returns an error, then the error from this
-	// callback is returned by the `Cpnn.Ping` method.
+	// callback is returned by the `Conn.Ping` method.
 	Ping func(c context.Context, ctx interface{}, conn *Conn) error
 
 	// PostPing is a callback that gets called at the end of
@@ -294,7 +294,7 @@ type HooksContext struct {
 	// `Hooks.PreClose` method, and may be nil.
 	//
 	// If this callback returns an error, then the error from this
-	// callback is returned by the `Cpnn.Close` method.
+	// callback is returned by the `Conn.Close` method.
 	Close func(c context.Context, ctx interface{}, conn *Conn) error
 
 	// PostClose is a callback that gets called at the end of
@@ -326,7 +326,7 @@ type HooksContext struct {
 	// `Hooks.PreResetSession` method, and may be nil.
 	//
 	// If this callback returns an error, then the error from this
-	// callback is returned by the `Cpnn.ResetSession` method.
+	// callback is returned by the `Conn.ResetSession` method.
 	ResetSession func(c context.Context, ctx interface{}, conn *Conn) error
 
 	// PostResetSession is a callback that gets called at the end of
@@ -551,7 +551,7 @@ type Hooks struct {
 	// `Hooks.PrePing` method, and may be nil.
 	//
 	// If this callback returns an error, then the error from this
-	// callback is returned by the `Cpnn.Ping` method.
+	// callback is returned by the `Conn.Ping` method.
 	Ping func(ctx interface{}, conn *Conn) error
 
 	// PostPing is a callback that gets called at the end of
@@ -774,7 +774,7 @@ type Hooks struct {
 	// `Hooks.PreClose` method, and may be nil.
 	//
 	// If this callback returns an error, then the error from this
-	// callback is returned by the `Cpnn.Close` method.
+	// callback is returned by the `Conn.Close` method.
 	Close func(ctx interface{}, conn *Conn) error
 
 	// PostClose is a callback that gets called at the end of
@@ -806,7 +806,7 @@ type Hooks struct {
 	// `Hooks.PreResetSession` method, and may be nil.
 	//
 	// If this callback returns an error, then the error from this
-	// callback is returned by the `Cpnn.ResetSession` method.
+	// callback is returned by the `Conn.ResetSession` method.
 	ResetSession func(ctx interface{}, conn *Conn) error
 
 	// PostResetSession is a callback that gets called at the end of

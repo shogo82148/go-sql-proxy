@@ -202,4 +202,4 @@ This software is released under the MIT License, see LICENSE file.
 
 ## godoc
 
-See [godoc](https://godoc.org/github.com/shogo82148/go-sql-proxy) for more imformation.
+See [godoc](https://godoc.org/github.com/shogo82148/go-sql-proxy) for more information.
