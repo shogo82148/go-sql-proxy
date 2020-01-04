@@ -3,12 +3,14 @@ package proxy
 import (
 	"context"
 	"database/sql/driver"
+	"reflect"
 	"testing"
+	"time"
 )
 
 func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	c := context.Background()
-	if ctx2, err := h.preOpen(c, ""); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preOpen(c, ""); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preOpen returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.open(c, ctx, nil); err != nil {
@@ -17,7 +19,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postOpen(c, ctx, nil, nil); err != nil {
 		t.Error("postOpen returns error: ", err)
 	}
-	if ctx2, err := h.prePing(c, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.prePing(c, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("prePing returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.ping(c, ctx, nil); err != nil {
@@ -26,7 +28,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postPing(c, ctx, nil, nil); err != nil {
 		t.Error("postPing returns error: ", err)
 	}
-	if ctx2, err := h.preExec(c, nil, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preExec(c, nil, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preExec returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.exec(c, ctx, nil, nil, nil); err != nil {
@@ -35,7 +37,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postExec(c, ctx, nil, nil, nil, nil); err != nil {
 		t.Error("postExec returns error: ", err)
 	}
-	if ctx2, err := h.preQuery(c, nil, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preQuery(c, nil, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preQuery returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.query(c, ctx, nil, nil, nil); err != nil {
@@ -44,7 +46,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postQuery(c, ctx, nil, nil, nil, nil); err != nil {
 		t.Error("postQuery returns error: ", err)
 	}
-	if ctx2, err := h.preBegin(c, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preBegin(c, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preBegin returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.begin(c, ctx, nil); err != nil {
@@ -53,7 +55,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postBegin(c, ctx, nil, nil); err != nil {
 		t.Error("postBegin returns error: ", err)
 	}
-	if ctx2, err := h.preCommit(c, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preCommit(c, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preCommit returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.commit(c, ctx, nil); err != nil {
@@ -62,7 +64,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postCommit(c, ctx, nil, nil); err != nil {
 		t.Error("postCommit returns error: ", err)
 	}
-	if ctx2, err := h.preRollback(c, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preRollback(c, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preRollback returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.rollback(c, ctx, nil); err != nil {
@@ -71,7 +73,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postRollback(c, ctx, nil, nil); err != nil {
 		t.Error("postRollback returns error: ", err)
 	}
-	if ctx2, err := h.preClose(c, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preClose(c, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preClose returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.close(c, ctx, nil); err != nil {
@@ -80,7 +82,7 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 	if err := h.postClose(c, ctx, nil, nil); err != nil {
 		t.Error("postClose returns error: ", err)
 	}
-	if ctx2, err := h.preResetSession(c, nil); ctx2 != ctx || err != nil {
+	if ctx2, err := h.preResetSession(c, nil); !reflect.DeepEqual(ctx2, ctx) || err != nil {
 		t.Errorf("preResetSession returns unexpected values: got (%v, %v) want (%v, nil)", ctx2, err, ctx)
 	}
 	if err := h.resetSession(c, ctx, nil); err != nil {
@@ -92,24 +94,24 @@ func testHooksInterface(t *testing.T, h hooks, ctx interface{}) {
 }
 
 func TestNilHooksContext(t *testing.T) {
-	// nil HooksContext will not panic and have no effec
+	// nil HooksContext will not panic and have no effect
 	testHooksInterface(t, (*HooksContext)(nil), nil)
 }
 
 func TestZeroHooksContext(t *testing.T) {
-	// zero HooksContext will not panic and have no effec
+	// zero HooksContext will not panic and have no effect
 	testHooksInterface(t, &HooksContext{}, nil)
 }
 
-func TestHooksContext(t *testing.T) {
-	dummy := 0
+func newTestHooksContext(t *testing.T) (*HooksContext, interface{}) {
+	dummy := time.Now().UnixNano()
 	ctx0 := &dummy
 	checkCtx := func(name string, ctx interface{}) {
 		if ctx != ctx0 {
 			t.Errorf("unexpected ctx: got %v want %v in %s", ctx, ctx0, name)
 		}
 	}
-	testHooksInterface(t, &HooksContext{
+	return &HooksContext{
 		PrePing: func(c context.Context, conn *Conn) (interface{}, error) {
 			return ctx0, nil
 		},
@@ -209,7 +211,12 @@ func TestHooksContext(t *testing.T) {
 			checkCtx("PostResetSession", ctx)
 			return err
 		},
-	}, ctx0)
+	}, ctx0
+}
+
+func TestHooksContext(t *testing.T) {
+	hooks, ctx0 := newTestHooksContext(t)
+	testHooksInterface(t, hooks, ctx0)
 }
 
 func TestNilHooks(t *testing.T) {
@@ -222,15 +229,15 @@ func TestZeroHooks(t *testing.T) {
 	testHooksInterface(t, &Hooks{}, nil)
 }
 
-func TestHooks(t *testing.T) {
-	dummy := 0
+func newTestHooks(t *testing.T) (*Hooks, interface{}) {
+	dummy := time.Now().UnixNano()
 	ctx0 := &dummy
 	checkCtx := func(name string, ctx interface{}) {
 		if ctx != ctx0 {
 			t.Errorf("unexpected ctx: got %v want %v in %s", ctx, ctx0, name)
 		}
 	}
-	testHooksInterface(t, &Hooks{
+	return &Hooks{
 		PrePing: func(conn *Conn) (interface{}, error) {
 			return ctx0, nil
 		},
@@ -330,5 +337,28 @@ func TestHooks(t *testing.T) {
 			checkCtx("PostResetSession", ctx)
 			return err
 		},
-	}, ctx0)
+	}, ctx0
+}
+
+func TestHooks(t *testing.T) {
+	hooks, ctx0 := newTestHooks(t)
+	testHooksInterface(t, hooks, ctx0)
+}
+
+func TestNilMultipleHooks(t *testing.T) {
+	// nil HooksContext will not panic and have no effect
+	testHooksInterface(t, multipleHooks(nil), nil)
+}
+
+func TestZeroMultipleHooks(t *testing.T) {
+	// zero HooksContext will not panic and have no effect
+	testHooksInterface(t, multipleHooks{}, nil)
+}
+
+func TestMultipleHooks(t *testing.T) {
+	hooks1, ctx1 := newTestHooksContext(t)
+	hooks2, ctx2 := newTestHooks(t)
+	hooks := multipleHooks{hooks1, hooks2}
+	ctx0 := []interface{}{ctx1, ctx2}
+	testHooksInterface(t, hooks, ctx0)
 }

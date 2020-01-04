@@ -1031,7 +1031,7 @@ func (h *Hooks) postResetSession(c context.Context, ctx interface{}, conn *Conn,
 type multipleHooks []hooks
 
 func (h multipleHooks) preDo(f func(h hooks) (interface{}, error)) (interface{}, error) {
-	if h == nil {
+	if len(h) == 0 {
 		return nil, nil
 	}
 	ctx := make([]interface{}, len(h))
@@ -1047,7 +1047,7 @@ func (h multipleHooks) preDo(f func(h hooks) (interface{}, error)) (interface{},
 }
 
 func (h multipleHooks) do(ctx interface{}, f func(h hooks, ctx interface{}) error) error {
-	if h == nil {
+	if len(h) == 0 {
 		return nil
 	}
 	sctx, ok := ctx.([]interface{})
@@ -1063,7 +1063,7 @@ func (h multipleHooks) do(ctx interface{}, f func(h hooks, ctx interface{}) erro
 }
 
 func (h multipleHooks) postDo(ctx interface{}, err error, f func(h hooks, ctx interface{}, err error) error) error {
-	if h == nil {
+	if len(h) == 0 {
 		return nil
 	}
 	sctx, ok := ctx.([]interface{})
