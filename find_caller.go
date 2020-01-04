@@ -4,6 +4,7 @@ package proxy
 
 import (
 	"runtime"
+	"strings"
 )
 
 func findCaller(f Filter) int {
@@ -20,7 +21,7 @@ func findCaller(f Filter) int {
 				break
 			}
 			name := frame.Function
-			if name == "" {
+			if name == "" || strings.HasPrefix(name, "runtime.") {
 				continue
 			}
 			// http://stackoverflow.com/questions/25262754/how-to-get-name-of-current-package-in-go
