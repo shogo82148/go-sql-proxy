@@ -38,5 +38,7 @@ func findCaller(f Filter) int {
 		}
 		skip += n
 	}
-	return 0
+	// fallback to the caller
+	// 1: Outputter.Output, 2: the caller
+	return 2
 }
