@@ -858,7 +858,7 @@ func TestFakeDB(t *testing.T) {
 			}
 			db.Close()
 
-			// Run test queris via a proxy
+			// Run test queries via a proxy
 			tc.opt.Name = fmt.Sprintf("%s-proxy-%s", testName, name)
 			dbProxyName, err := json.Marshal(tc.opt)
 			dbProxy, err := sql.Open(driverName, string(dbProxyName))
