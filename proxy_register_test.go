@@ -16,8 +16,17 @@ func ExampleRegisterProxy() {
 		log.Fatal(err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// proxy.RegisterProxy register hook points.
+	// do nothing by default.
+	if err := db.PingContext(ctx); err != nil {
+		log.Fatal(err)
+	}
+
 	// proxy.WithHooks enables the hooks in this context.
-	ctx := proxy.WithHooks(context.Background(), &proxy.HooksContext{
+	ctx = proxy.WithHooks(context.Background(), &proxy.HooksContext{
 		Ping: func(c context.Context, ctx interface{}, conn *proxy.Conn) error {
 			fmt.Println("Ping")
 			return nil
