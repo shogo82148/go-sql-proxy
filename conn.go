@@ -295,3 +295,12 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 
 	return rows, nil
 }
+
+// CheckNamedValue for implementing NamedValueChecker
+func (conn *Conn) CheckNamedValue(nv *driver.NamedValue) (err error) {
+	if nvc, ok := conn.Conn.(driver.NamedValueChecker); ok {
+		return nvc.CheckNamedValue(nv)
+	}
+	nv.Value, err = driver.DefaultParameterConverter.ConvertValue(nv.Value)
+	return err
+}
