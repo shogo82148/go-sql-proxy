@@ -44,13 +44,17 @@ jobs:
         shell: bash
         working-directory: src/github.com/shogo82148/go-sql-proxy
 
-      - name: Send coverage
+      - name: Send coverage to coveralls.io
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: profile.cov
           parallel: true
           working-directory: src/github.com/shogo82148/go-sql-proxy
-
+      - name: Send coverage to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: src/github.com/shogo82148/go-sql-proxy/profile.cov
   finish:
     needs: test
     runs-on: ubuntu-latest
