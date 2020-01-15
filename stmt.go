@@ -133,3 +133,15 @@ func (stmt *Stmt) ColumnConverter(idx int) driver.ValueConverter {
 	}
 	return driver.DefaultParameterConverter
 }
+
+// CheckNamedValue for implementing NamedValueChecker
+func (stmt *Stmt) CheckNamedValue(nv *driver.NamedValue) (err error) {
+	if nvc, ok := stmt.Stmt.(driver.NamedValueChecker); ok {
+		return nvc.CheckNamedValue(nv)
+	}
+	if nvc, ok := stmt.Conn.Conn.(driver.NamedValueChecker); ok {
+		return nvc.CheckNamedValue(nv)
+	}
+	// fallback to default
+	return defaultCheckNamedValue(nv)
+}
