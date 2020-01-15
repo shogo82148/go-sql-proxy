@@ -7,6 +7,15 @@ import (
 	"database/sql/driver"
 )
 
+// namedValueChecker is the same as driver.NamedValueChecker.
+// Copied from database/sql/driver/driver.go for supporting Go 1.8.
+type namedValueChecker interface {
+	// CheckNamedValue is called before passing arguments to the driver
+	// and is called in place of any ColumnConverter. CheckNamedValue must do type
+	// validation and conversion as appropriate for the driver.
+	CheckNamedValue(*driver.NamedValue) error
+}
+
 // Proxy is a sql driver.
 // It adds hook points to other sql drivers.
 type Proxy struct {

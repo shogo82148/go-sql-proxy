@@ -10,3 +10,4 @@ var _ driver.ExecerContext = &Conn{}
 var _ driver.Pinger = &Conn{}
 var _ driver.Queryer = &Conn{}
 var _ driver.QueryerContext = &Conn{}
+var _ namedValueChecker = &Conn{}
