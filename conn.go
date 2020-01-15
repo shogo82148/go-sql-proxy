@@ -306,6 +306,8 @@ func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 }
 
 // CheckNamedValue for implementing NamedValueChecker
+// This function may be unnecessary because `proxy.Stmt` already implements `NamedValueChecker`,
+// but it is implemented just in case.
 func (conn *Conn) CheckNamedValue(nv *driver.NamedValue) (err error) {
 	if nvc, ok := conn.Conn.(driver.NamedValueChecker); ok {
 		return nvc.CheckNamedValue(nv)
