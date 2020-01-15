@@ -54,7 +54,7 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./profile.cov
+          file: src/github.com/shogo82148/go-sql-proxy/profile.cov
   finish:
     needs: test
     runs-on: ubuntu-latest
