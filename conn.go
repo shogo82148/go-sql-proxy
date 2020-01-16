@@ -315,3 +315,41 @@ func (conn *Conn) CheckNamedValue(nv *driver.NamedValue) (err error) {
 	// fallback to default
 	return defaultCheckNamedValue(nv)
 }
+
+// sessionResetter is the same as driver.SessionResetter.
+// Copied from database/sql/driver/driver.go for supporting Go 1.9
+type sessionResetter interface {
+	// ResetSession is called while a connection is in the connection
+	// pool. No queries will run on this connection until this method returns.
+	//
+	// If the connection is bad this should return driver.ErrBadConn to prevent
+	// the connection from being returned to the connection pool. Any other
+	// error will be discarded.
+	ResetSession(ctx context.Context) error
+}
+
+// ResetSession resets the state of Conn.
+func (conn *Conn) ResetSession(ctx context.Context) error {
+	var err error
+	var myctx interface{}
+	hooks := conn.Proxy.getHooks(ctx)
+
+	if hooks != nil {
+		defer func() { hooks.postResetSession(ctx, myctx, conn, err) }()
+		if myctx, err = hooks.preResetSession(ctx, conn); err != nil {
+			return err
+		}
+	}
+
+	if sr, ok := conn.Conn.(sessionResetter); ok {
+		err = sr.ResetSession(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	if hooks != nil {
+		err = hooks.resetSession(ctx, myctx, conn)
+	}
+	return err
+}
