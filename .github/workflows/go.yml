@@ -51,10 +51,10 @@ jobs:
           parallel: true
           working-directory: src/github.com/shogo82148/go-sql-proxy
       - name: Send coverage to codecov.io
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: src/github.com/shogo82148/go-sql-proxy/profile.cov
+        run: bash <(curl -s https://codecov.io/bash)
+        shell: bash
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   finish:
     needs: test
     runs-on: ubuntu-latest
