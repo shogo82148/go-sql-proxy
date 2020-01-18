@@ -55,6 +55,7 @@ jobs:
         shell: bash
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        working-directory: src/github.com/shogo82148/go-sql-proxy
   finish:
     needs: test
     runs-on: ubuntu-latest
