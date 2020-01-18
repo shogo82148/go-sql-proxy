@@ -38,7 +38,7 @@ jobs:
           path: src/github.com/shogo82148/go-sql-proxy
 
       - name: Test
-        run: go test -v -coverprofile=profile.cov .
+        run: go test -v -coverprofile=coverage.txt .
         env:
           GO111MODULE: "on"
         shell: bash
@@ -47,7 +47,7 @@ jobs:
       - name: Send coverage to coveralls.io
         uses: shogo82148/actions-goveralls@v1
         with:
-          path-to-profile: profile.cov
+          path-to-profile: coverage.txt
           parallel: true
           working-directory: src/github.com/shogo82148/go-sql-proxy
       - name: Send coverage to codecov.io
