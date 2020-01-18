@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 )
 
@@ -64,6 +65,8 @@ type fakeStmtExt fakeStmt
 // fakeStmtCtx is fakeStmt with context
 type fakeStmtCtx fakeStmt
 
+type fakeRows struct{}
+
 var fdriver = &fakeDriver{}
 var _ driver.Driver = &fakeDriver{}
 var _ driver.Conn = &fakeConn{}
@@ -86,6 +89,7 @@ var _ driver.Stmt = &fakeStmtCtx{}
 var _ driver.ColumnConverter = &fakeStmtCtx{}
 var _ driver.StmtExecContext = &fakeStmtCtx{}
 var _ driver.StmtQueryContext = &fakeStmtCtx{}
+var _ driver.Rows = &fakeRows{}
 
 func init() {
 	sql.Register("fakedb", fdriver)
@@ -211,7 +215,7 @@ func (c *fakeConnExt) Query(query string, args []driver.Value) (driver.Rows, err
 		c.db.Log("[Conn.Query]", "ERROR!")
 		return nil, errors.New("Query failed")
 	}
-	return nil, nil
+	return &fakeRows{}, nil
 }
 
 func (c *fakeConnCtx) Ping(ctx context.Context) error {
@@ -270,7 +274,7 @@ func (c *fakeConnCtx) QueryContext(ctx context.Context, query string, args []dri
 		c.db.Log("[Conn.QueryContext]", "ERROR!")
 		return nil, errors.New("Query failed")
 	}
-	return nil, nil
+	return &fakeRows{}, nil
 }
 
 func (tx *fakeTx) Commit() error {
@@ -307,7 +311,7 @@ func (stmt *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 		stmt.db.Log("[Stmt.Query]", "ERROR!")
 		return nil, errors.New("Query failed")
 	}
-	return nil, nil
+	return &fakeRows{}, nil
 }
 
 func (stmt *fakeStmtExt) Close() error {
@@ -364,12 +368,24 @@ func (stmt *fakeStmtCtx) QueryContext(ctx context.Context, args []driver.NamedVa
 		stmt.db.Log("[Conn.QueryContext]", "ERROR!")
 		return nil, errors.New("Query failed")
 	}
-	return nil, nil
+	return &fakeRows{}, nil
 }
 
 func (stmt *fakeStmtCtx) ColumnConverter(idx int) driver.ValueConverter {
 	stmt.db.Log("[Stmt.ColumnConverter]", idx)
 	return driver.DefaultParameterConverter
+}
+
+func (rows *fakeRows) Columns() []string {
+	return []string{"id"}
+}
+
+func (rows *fakeRows) Close() error {
+	return nil
+}
+
+func (rows *fakeRows) Next(dest []driver.Value) error {
+	return io.EOF
 }
 
 func convertValuesToString(args []driver.Value) string {

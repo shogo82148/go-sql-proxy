@@ -24,13 +24,12 @@ func TestTraceProxy(t *testing.T) {
 		t.Fatalf("Open filed: %v", err)
 	}
 
-	_, err = db.Exec(
-		"CREATE TABLE t1 (id INTEGER PRIMARY KEY)",
-	)
+	_, err = db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)")
 	if err != nil {
 		t.Fatalf("create table failed: %v", err)
 	}
 
+	// test for transactions
 	err = func() error {
 		tx, err := db.Begin()
 		if err != nil {
@@ -40,7 +39,26 @@ func TestTraceProxy(t *testing.T) {
 		if _, err := tx.Exec("INSERT INTO t1 (id) VALUES(?)", 1); err != nil {
 			return err
 		}
+		rows, err := tx.Query("SELECT id FROM t1 WHERE id = ?", 1)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+		}
+		rows.Close()
 		return tx.Commit()
+	}()
+	if err != nil {
+		t.Fatalf("do failed: %v", err)
+	}
+
+	// test for rollback
+	err = func() error {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		return tx.Rollback()
 	}()
 	if err != nil {
 		t.Fatalf("do failed: %v", err)
@@ -56,9 +74,13 @@ func TestTraceProxy(t *testing.T) {
 		regexp.MustCompile(`tracer_test.go:27: Open 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`tracer_test.go:27: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:35: Begin 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:40: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:43: Commit 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:34: Begin 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:39: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:42: Query 0x[0-9a-f]+: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:49: Commit 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:57: Begin 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:61: Rollback 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: ResetSession 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: Close 0x[0-9a-f]+ ` + timeComponent),
 	}
