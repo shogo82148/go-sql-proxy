@@ -28,7 +28,7 @@ import (
 func main() {
 	proxy.RegisterTracer()
 
-	db, _ := sql.Open("origin:tracer", "data source")
+	db, _ := sql.Open("origin:trace", "data source")
 	db.Exec("CREATE TABLE t1 (id INTEGER PRIMARY KEY)")
 	// STDERR: main.go:14: Exec: CREATE TABLE t1 (id INTEGER PRIMARY KEY); args = [] (0s)
 }
@@ -39,7 +39,7 @@ Use `proxy.NewTraceProxy` to change the log output destination.
 ``` go
 logger := New(os.Stderr, "", LstdFlags)
 tracer := NewTraceProxy(&another.Driver{}, logger)
-sql.Register("origin:tracer", tracer)
+sql.Register("origin:trace", tracer)
 db, err := sql.Open("origin:tracer", "data source")
 ```
 
