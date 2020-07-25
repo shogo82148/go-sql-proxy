@@ -1,5 +1,10 @@
 name: Test
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
 jobs:
 
   test:
@@ -13,19 +18,19 @@ jobs:
           - windows-latest
           - macos-latest
         go:
-          - '1.8'
-          - '1.9'
-          - '1.10'
-          - '1.11'
-          - '1.12'
-          - '1.13'
-          - '1.14'
           - '1'
+          - '1.14'
+          - '1.13'
+          - '1.12'
+          - '1.11'
+          - '1.10'
+          - '1.9'
+          - '1.8'
 
     steps:
 
       - name: Set up Go ${{ matrix.go }}
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
         id: go
@@ -52,6 +57,7 @@ jobs:
           path-to-profile: coverage.txt
           parallel: true
           working-directory: src/github.com/shogo82148/go-sql-proxy
+          flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
       - name: Send coverage to codecov.io
         run: bash <(curl -s https://codecov.io/bash)
         shell: bash
