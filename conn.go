@@ -353,3 +353,21 @@ func (conn *Conn) ResetSession(ctx context.Context) error {
 	}
 	return err
 }
+
+// the same as driver.Validator.
+// Copied from database/sql/driver/driver.go for supporting Go 1.15
+type validator interface {
+	// IsValid is called prior to placing the connection into the
+	// connection pool. The connection will be discarded if false is returned.
+	IsValid() bool
+}
+
+// IsValid implements driver.Validator.
+// It calls the IsValid method of the original connection.
+// If the original connection does not satisfy "database/sql/driver".Validator, it always returns true.
+func (conn *Conn) IsValid() bool {
+	if v, ok := conn.Conn.(validator); ok {
+		return v.IsValid()
+	}
+	return true
+}
