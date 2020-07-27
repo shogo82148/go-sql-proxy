@@ -353,3 +353,41 @@ func (conn *Conn) ResetSession(ctx context.Context) error {
 	}
 	return err
 }
+
+// the same as driver.Validator.
+// Copied from database/sql/driver/driver.go for supporting Go 1.15
+type validator interface {
+	// IsValid is called prior to placing the connection into the
+	// connection pool. The connection will be discarded if false is returned.
+	IsValid() bool
+}
+
+// IsValid implements driver.Validator.
+// It calls the IsValid method of the original connection.
+// If the original connection does not satisfy "database/sql/driver".Validator, it always returns true.
+func (conn *Conn) IsValid() bool {
+	valid := true
+	var myctx interface{}
+	hooks := conn.Proxy.hooks
+	if hooks != nil {
+		// Setup PostIsValid. This needs to be a closure like this
+		// or otherwise changes to the `ctx` and `conn` parameters
+		// within this Open() method does not get applied at the
+		// time defer is fired
+		defer func() { hooks.postIsValid(myctx, conn, valid) }()
+		var err error
+		if myctx, err = hooks.preIsValid(conn); err != nil {
+			valid = false
+			return valid
+		}
+	}
+
+	if v, ok := conn.Conn.(validator); ok {
+		valid = v.IsValid()
+	}
+	if valid && hooks != nil {
+		err := hooks.isValid(myctx, conn)
+		valid = err == nil
+	}
+	return valid
+}
