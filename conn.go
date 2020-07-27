@@ -366,8 +366,28 @@ type validator interface {
 // It calls the IsValid method of the original connection.
 // If the original connection does not satisfy "database/sql/driver".Validator, it always returns true.
 func (conn *Conn) IsValid() bool {
-	if v, ok := conn.Conn.(validator); ok {
-		return v.IsValid()
+	valid := true
+	var myctx interface{}
+	hooks := conn.Proxy.hooks
+	if hooks != nil {
+		// Setup PostIsValid. This needs to be a closure like this
+		// or otherwise changes to the `ctx` and `conn` parameters
+		// within this Open() method does not get applied at the
+		// time defer is fired
+		defer func() { hooks.postIsValid(myctx, conn, valid) }()
+		var err error
+		if myctx, err = hooks.preIsValid(conn); err != nil {
+			valid = false
+			return valid
+		}
 	}
-	return true
+
+	if v, ok := conn.Conn.(validator); ok {
+		valid = v.IsValid()
+	}
+	if valid && hooks != nil {
+		err := hooks.isValid(myctx, conn)
+		valid = err == nil
+	}
+	return valid
 }

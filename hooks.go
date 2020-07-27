@@ -38,6 +38,9 @@ type hooks interface {
 	preResetSession(c context.Context, conn *Conn) (interface{}, error)
 	resetSession(c context.Context, ctx interface{}, conn *Conn) error
 	postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error
+	preIsValid(conn *Conn) (interface{}, error)
+	isValid(ctx interface{}, conn *Conn) error
+	postIsValid(ctx interface{}, conn *Conn, valid bool) error
 }
 
 // HooksContext is callback functions with context.Context for the proxy.
@@ -328,6 +331,36 @@ type HooksContext struct {
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreResetSession` method, and may be nil.
 	PostResetSession func(c context.Context, ctx interface{}, conn *Conn, err error) error
+
+	// PreIsValid is a callback that gets called prior to calling
+	// `Conn.IsValid`, and is ALWAYS called. If this callback returns an
+	// error, the underlying driver's `Conn.IsValid` and `Hooks.IsValid` methods
+	// are not called.
+	//
+	// The first return value is passed to both `Hooks.IsValid` and
+	// `Hooks.PostIsValid` callbacks. You may specify anything you want.
+	// Return nil if you do not need to use it.
+	//
+	// The second return value is indicates the error found while
+	// executing this hook. If this callback returns an error,
+	// the connection is marked as invalid.
+	PreIsValid func(conn *Conn) (interface{}, error)
+
+	// IsValid is called after the underlying driver's `Conn.IsValid` method
+	// returns true.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PreIsValid` method, and may be nil.
+	//
+	// If this callback returns an error, the connection is marked as invalid.
+	IsValid func(ctx interface{}, conn *Conn) error
+
+	// PostPostIsValid is a callback that gets called at the end of
+	// the call to `Conn.PostIsValid`. It is ALWAYS called.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PrePostIsValid` method, and may be nil.
+	PostIsValid func(ctx interface{}, conn *Conn, valid bool) error
 }
 
 func (h *HooksContext) prePing(c context.Context, conn *Conn) (interface{}, error) {
@@ -519,8 +552,29 @@ func (h *HooksContext) postResetSession(c context.Context, ctx interface{}, conn
 	return h.PostResetSession(c, ctx, conn, err)
 }
 
+func (h *HooksContext) preIsValid(conn *Conn) (interface{}, error) {
+	if h == nil || h.PreIsValid == nil {
+		return nil, nil
+	}
+	return h.PreIsValid(conn)
+}
+
+func (h *HooksContext) isValid(ctx interface{}, conn *Conn) error {
+	if h == nil || h.IsValid == nil {
+		return nil
+	}
+	return h.IsValid(ctx, conn)
+}
+
+func (h *HooksContext) postIsValid(ctx interface{}, conn *Conn, valid bool) error {
+	if h == nil || h.PostIsValid == nil {
+		return nil
+	}
+	return h.PostIsValid(ctx, conn, valid)
+}
+
 // Hooks is callback functions for the proxy.
-// Deprecated: You should use HooksContext instead.
+// DEPRECATED: You should use HooksContext instead.
 type Hooks struct {
 	// PrePing is a callback that gets called prior to calling
 	// `Conn.Ping`, and is ALWAYS called. If this callback returns an
@@ -1028,6 +1082,19 @@ func (h *Hooks) postResetSession(c context.Context, ctx interface{}, conn *Conn,
 	return h.PostResetSession(ctx, conn, err)
 }
 
+// Hooks is DEPRECATED, so we will not add any hook point.
+func (h *Hooks) preIsValid(conn *Conn) (interface{}, error) {
+	return nil, nil
+}
+
+func (h *Hooks) isValid(ctx interface{}, conn *Conn) error {
+	return nil
+}
+
+func (h *Hooks) postIsValid(ctx interface{}, conn *Conn, valid bool) error {
+	return nil
+}
+
 type multipleHooks []hooks
 
 func (h multipleHooks) preDo(f func(h hooks) (interface{}, error)) (interface{}, error) {
@@ -1243,6 +1310,30 @@ func (h multipleHooks) resetSession(c context.Context, ctx interface{}, conn *Co
 func (h multipleHooks) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
 		return h.postResetSession(c, ctx, conn, err)
+	})
+}
+
+func (h multipleHooks) preIsValid(conn *Conn) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.preIsValid(conn)
+	})
+}
+
+func (h multipleHooks) isValid(ctx interface{}, conn *Conn) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.isValid(ctx, conn)
+	})
+}
+
+var errInvlidConnection = errors.New("invalid connection")
+
+func (h multipleHooks) postIsValid(ctx interface{}, conn *Conn, valid bool) error {
+	var err error
+	if !valid {
+		err = errInvlidConnection
+	}
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postIsValid(ctx, conn, err == nil)
 	})
 }
 

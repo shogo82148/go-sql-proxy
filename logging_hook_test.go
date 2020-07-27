@@ -207,3 +207,24 @@ func (h *loggingHook) postResetSession(c context.Context, ctx interface{}, conn 
 	fmt.Fprintln(h, "[PostResetSession]")
 	return nil
 }
+
+func (h *loggingHook) preIsValid(conn *Conn) (interface{}, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PreIsValid]")
+	return nil, nil
+}
+
+func (h *loggingHook) isValid(ctx interface{}, conn *Conn) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[IsValid]")
+	return nil
+}
+
+func (h *loggingHook) postIsValid(ctx interface{}, conn *Conn, valid bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PostIsValid]")
+	return nil
+}
