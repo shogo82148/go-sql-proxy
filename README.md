@@ -5,15 +5,15 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/shogo82148/go-sql-proxy?tab=doc)](https://pkg.go.dev/github.com/shogo82148/go-sql-proxy?tab=doc)
 [![Coverage Status](https://coveralls.io/repos/github/shogo82148/go-sql-proxy/badge.svg?branch=master)](https://coveralls.io/github/shogo82148/go-sql-proxy?branch=master)
 
-A proxy package is a proxy driver for database/sql.
-You can hook SQL execution.
+The proxy package is a proxy driver for the database/sql package.
+You can hook SQL executions.
+It supports Go 1.8 or laster.
 
 ## SYNOPSIS
 
 ### Use Ready‐Made SQL tracer
 
 `proxy.RegisterTracer` is a shortcut for registering a SQL query tracer.
-You can use it if your Go is from version 1.5 onward.
 
 ``` go
 package main
