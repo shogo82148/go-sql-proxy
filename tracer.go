@@ -254,28 +254,6 @@ func NewTraceHooks(opt TracerOptions) *HooksContext {
 			o.Output(findCaller(f), s)
 			return nil
 		},
-		PreResetSession: func(_ context.Context, _ *Conn) (interface{}, error) {
-			return time.Now(), nil
-		},
-		PostResetSession: func(_ context.Context, ctx interface{}, conn *Conn, err error) error {
-			d := time.Since(ctx.(time.Time))
-			if d < opt.SlowQuery {
-				return nil
-			}
-			buf := pool.Get().(*bytes.Buffer)
-			buf.Reset()
-			fmt.Fprintf(buf, "ResetSession %p", conn.Conn)
-			if err != nil {
-				fmt.Fprintf(buf, "; err = %#v", err.Error())
-			}
-			io.WriteString(buf, " (")
-			io.WriteString(buf, d.String())
-			io.WriteString(buf, ")")
-			s := buf.String()
-			pool.Put(buf)
-			o.Output(findCaller(f), s)
-			return nil
-		},
 	}
 }
 
