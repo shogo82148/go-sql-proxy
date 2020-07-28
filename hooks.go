@@ -574,7 +574,7 @@ func (h *HooksContext) postIsValid(ctx interface{}, conn *Conn, valid bool) erro
 }
 
 // Hooks is callback functions for the proxy.
-// DEPRECATED: You should use HooksContext instead.
+// Deprecated: You should use HooksContext instead.
 type Hooks struct {
 	// PrePing is a callback that gets called prior to calling
 	// `Conn.Ping`, and is ALWAYS called. If this callback returns an
