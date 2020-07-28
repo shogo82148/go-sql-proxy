@@ -1339,18 +1339,23 @@ func (h multipleHooks) postIsValid(ctx interface{}, conn *Conn, valid bool) erro
 
 type contextHooksKey struct{}
 
+func contextHooks(ctx context.Context) hooks {
+	if h, ok := ctx.Value(contextHooksKey{}).(hooks); ok {
+		return h
+	}
+	return nil
+}
+
 // WithHooks returns a copy of parent context in which the hooks associated.
 func WithHooks(ctx context.Context, hs ...*HooksContext) context.Context {
-	switch len(hs) {
-	case 0:
-		return context.WithValue(ctx, contextHooksKey{}, (*HooksContext)(nil))
-	case 1:
-		return context.WithValue(ctx, contextHooksKey{}, hs[0])
-	}
+	current := contextHooks(ctx)
 
-	hooksSlice := make([]hooks, len(hs))
-	for i, hk := range hs {
-		hooksSlice[i] = hk
+	hooksSlice := make([]hooks, len(hs)+1)
+	if current != nil {
+		hooksSlice = append(hooksSlice, current)
+	}
+	for _, hk := range hs {
+		hooksSlice = append(hooksSlice, hk)
 	}
 	return context.WithValue(ctx, contextHooksKey{}, multipleHooks(hooksSlice))
 }
