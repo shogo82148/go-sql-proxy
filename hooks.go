@@ -1345,6 +1345,7 @@ func contextHooks(ctx context.Context) hooks {
 		if h == (*Hooks)(nil) || h == (*HooksContext)(nil) {
 			return nil
 		}
+		return h
 	}
 	return nil
 }
