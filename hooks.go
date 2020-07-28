@@ -1341,7 +1341,10 @@ type contextHooksKey struct{}
 
 func contextHooks(ctx context.Context) hooks {
 	if h, ok := ctx.Value(contextHooksKey{}).(hooks); ok {
-		return h
+		// Make the caller nil check easy.
+		if h == (*Hooks)(nil) || h == (*HooksContext)(nil) {
+			return nil
+		}
 	}
 	return nil
 }
@@ -1349,10 +1352,24 @@ func contextHooks(ctx context.Context) hooks {
 // WithHooks returns a copy of parent context in which the hooks associated.
 func WithHooks(ctx context.Context, hs ...*HooksContext) context.Context {
 	current := contextHooks(ctx)
+	if current == nil {
+		switch len(hs) {
+		case 0:
+			return ctx
+		case 1:
+			return context.WithValue(ctx, contextHooksKey{}, hs[0])
+		}
+	}
 
-	hooksSlice := make([]hooks, len(hs)+1)
-	if current != nil {
+	var hooksSlice []hooks
+	if h, ok := current.(multipleHooks); ok {
+		hooksSlice = make([]hooks, 0, len(hs)+len(h))
+		hooksSlice = append(hooksSlice, []hooks(h)...)
+	} else if current != nil {
+		hooksSlice = make([]hooks, 0, len(hs)+1)
 		hooksSlice = append(hooksSlice, current)
+	} else {
+		hooksSlice = make([]hooks, 0, len(hs))
 	}
 	for _, hk := range hs {
 		hooksSlice = append(hooksSlice, hk)
