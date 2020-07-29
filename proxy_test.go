@@ -439,20 +439,6 @@ func TestFakeDB(t *testing.T) {
 		},
 		{
 			opt: &fakeConnOption{
-				Name:     "context-with-no-hooks",
-				ConnType: "fakeConnCtx",
-			},
-			hooksLog: "[PreClose]\n[Close]\n[PostClose]\n",
-			f: func(db *sql.DB) error {
-				// remove the hooks from the current context.
-				// Exec will not be logged.
-				ctx := WithHooks(context.Background())
-				_, err := db.ExecContext(ctx, "CREATE TABLE t1 (id INTEGER PRIMARY KEY)", 123456789)
-				return err
-			},
-		},
-		{
-			opt: &fakeConnOption{
 				Name:     "context-with-hooks",
 				ConnType: "fakeConnCtx",
 			},

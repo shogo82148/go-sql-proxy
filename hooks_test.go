@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"database/sql/driver"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -361,4 +362,89 @@ func TestMultipleHooks(t *testing.T) {
 	hooks := multipleHooks{hooks1, hooks2}
 	ctx0 := []interface{}{ctx1, ctx2}
 	testHooksInterface(t, hooks, ctx0)
+}
+
+func TestWithHooks(t *testing.T) {
+	ctx := WithHooks(context.Background(), &HooksContext{}, &HooksContext{})
+	hooks := contextHooks(ctx)
+	conn := &Conn{}
+	myctx, err := hooks.prePing(ctx, conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := hooks.ping(ctx, myctx, conn); err != nil {
+		t.Fatal(err)
+	}
+	if err := hooks.postPing(ctx, myctx, conn, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithHooks_error(t *testing.T) {
+	var count int
+	var errPrePing = errors.New("pre-ping error")
+	var errPing = errors.New("ping error")
+	var errPostPing = errors.New("post-ping error")
+	ctx := WithHooks(context.Background(), &HooksContext{
+		PrePing: func(c context.Context, conn *Conn) (interface{}, error) {
+			count++
+			if count != 1 {
+				t.Errorf("want count is %d, got %d", 1, count)
+			}
+			return nil, errPrePing
+		},
+		Ping: func(c context.Context, ctx interface{}, conn *Conn) error {
+			count++
+			if count != 3 {
+				t.Errorf("want count is %d, got %d", 3, count)
+			}
+			return errPing
+		},
+		PostPing: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
+			count++
+			if count != 5 {
+				t.Errorf("want count is %d, got %d", 5, count)
+			}
+			return errors.New("some error")
+		},
+	}, &HooksContext{
+		PrePing: func(c context.Context, conn *Conn) (interface{}, error) {
+			count++
+			if count != 2 {
+				t.Errorf("want count is %d, got %d", 2, count)
+			}
+			return nil, errors.New("some error")
+		},
+		Ping: func(c context.Context, ctx interface{}, conn *Conn) error {
+			// never reach here because previous ping hook fails.
+			panic("never reach")
+		},
+		PostPing: func(c context.Context, ctx interface{}, conn *Conn, err error) error {
+			count++
+
+			// PostPing functions are called by reverse order.
+			if count != 4 {
+				t.Errorf("want count is %d, got %d", 4, count)
+			}
+			return errPostPing
+		},
+	})
+
+	hooks := contextHooks(ctx)
+	conn := &Conn{}
+	myctx, err := hooks.prePing(ctx, conn)
+	if err != errPrePing {
+		t.Errorf("want %v, got %v", errPrePing, err)
+	}
+	err = hooks.ping(ctx, myctx, conn)
+	if err != errPing {
+		t.Errorf("want %v, got %v", errPing, err)
+	}
+	err = hooks.postPing(ctx, myctx, conn, err)
+	if err != errPostPing {
+		t.Errorf("want %v, got %v", errPostPing, err)
+	}
+	if count != 5 {
+		t.Errorf("want %d, got %d", 5, count)
+	}
 }
