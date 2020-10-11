@@ -1,9 +1,9 @@
 # go-sql-proxy
 
-[![Build Status](https://github.com/shogo82148/go-sql-proxy/workflows/Test/badge.svg?branch=master)](https://github.com/shogo82148/go-sql-proxy/actions)
+[![Build Status](https://github.com/shogo82148/go-sql-proxy/workflows/Test/badge.svg?branch=main)](https://github.com/shogo82148/go-sql-proxy/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/shogo82148/go-sql-proxy)](https://goreportcard.com/report/github.com/shogo82148/go-sql-proxy)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/shogo82148/go-sql-proxy?tab=doc)](https://pkg.go.dev/github.com/shogo82148/go-sql-proxy?tab=doc)
-[![Coverage Status](https://coveralls.io/repos/github/shogo82148/go-sql-proxy/badge.svg?branch=master)](https://coveralls.io/github/shogo82148/go-sql-proxy?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/shogo82148/go-sql-proxy/badge.svg?branch=main)](https://coveralls.io/github/shogo82148/go-sql-proxy?branch=main)
 
 The proxy package is a proxy driver for the database/sql package.
 You can hook SQL executions.
