@@ -256,7 +256,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 	var rows driver.Rows
 	hooks := conn.Proxy.getHooks(c)
 	if hooks != nil {
-		stmt := &Stmt{
+		stmt = &Stmt{
 			QueryString: query,
 			Proxy:       conn.Proxy,
 			Conn:        conn,
