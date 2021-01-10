@@ -61,6 +61,27 @@ func (h *loggingHook) postOpen(c context.Context, ctx interface{}, conn *Conn, e
 	return nil
 }
 
+func (h *loggingHook) prePrepare(c context.Context, stmt *Stmt) (interface{}, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PrePrepare]")
+	return nil, nil
+}
+
+func (h *loggingHook) prepare(c context.Context, ctx interface{}, stmt *Stmt) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[Prepare]")
+	return nil
+}
+
+func (h *loggingHook) postPrepare(c context.Context, ctx interface{}, stmt *Stmt, err error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	fmt.Fprintln(h, "[PostPrepare]")
+	return nil
+}
+
 func (h *loggingHook) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
