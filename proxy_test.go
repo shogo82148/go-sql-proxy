@@ -36,6 +36,7 @@ func TestFakeDB(t *testing.T) {
 				Name: "execAll",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreExec]\n[Exec]\n[PostExec]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
@@ -49,6 +50,7 @@ func TestFakeDB(t *testing.T) {
 				FailExec: true,
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreExec]\n[PostExec]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
@@ -64,6 +66,7 @@ func TestFakeDB(t *testing.T) {
 				Name: "execError-NamedValue",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreExec]\n[PostExec]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
@@ -80,6 +83,7 @@ func TestFakeDB(t *testing.T) {
 				Name: "queryAll",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				_, err := db.Query("SELECT * FROM test WHERE id = ?", 123456789)
@@ -92,6 +96,7 @@ func TestFakeDB(t *testing.T) {
 				FailQuery: true,
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreQuery]\n[PostQuery]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
@@ -107,6 +112,7 @@ func TestFakeDB(t *testing.T) {
 				Name: "prepare",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")
@@ -255,6 +261,7 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnExt",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreExec]\n[Exec]\n[PostExec]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
@@ -325,6 +332,7 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnCtx",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreExec]\n[Exec]\n[PostExec]\n" +
 				"[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
@@ -343,6 +351,7 @@ func TestFakeDB(t *testing.T) {
 				ConnType: "fakeConnCtx",
 			},
 			hooksLog: "[PreOpen]\n[Open]\n[PostOpen]\n" +
+				"[PrePrepare]\n[Prepare]\n[PostPrepare]\n" +
 				"[PreQuery]\n[Query]\n[PostQuery]\n",
 			f: func(db *sql.DB) error {
 				stmt, err := db.Prepare("SELECT * FROM test WHERE id = ?")

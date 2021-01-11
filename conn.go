@@ -50,17 +50,30 @@ func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
 
 // PrepareContext returns a prepared statement which is wrapped by Stmt.
 func (conn *Conn) PrepareContext(c context.Context, query string) (driver.Stmt, error) {
-	var stmt driver.Stmt
+	var ctx interface{}
+	var stmt = &Stmt{
+		QueryString: query,
+		Proxy:       conn.Proxy,
+		Conn:        conn,
+	}
 	var err error
+	hooks := conn.Proxy.getHooks(c)
+	if hooks != nil {
+		defer func() { hooks.postPrepare(c, ctx, stmt, err) }()
+		if ctx, err = hooks.prePrepare(c, stmt); err != nil {
+			return nil, err
+		}
+	}
+
 	if connCtx, ok := conn.Conn.(driver.ConnPrepareContext); ok {
-		stmt, err = connCtx.PrepareContext(c, query)
+		stmt.Stmt, err = connCtx.PrepareContext(c, stmt.QueryString)
 	} else {
-		stmt, err = conn.Conn.Prepare(query)
+		stmt.Stmt, err = conn.Conn.Prepare(stmt.QueryString)
 		if err == nil {
 			select {
 			default:
 			case <-c.Done():
-				stmt.Close()
+				stmt.Stmt.Close()
 				return nil, c.Err()
 			}
 		}
@@ -68,12 +81,13 @@ func (conn *Conn) PrepareContext(c context.Context, query string) (driver.Stmt, 
 	if err != nil {
 		return nil, err
 	}
-	return &Stmt{
-		Stmt:        stmt,
-		QueryString: query,
-		Proxy:       conn.Proxy,
-		Conn:        conn,
-	}, nil
+
+	if hooks != nil {
+		if err = hooks.prepare(c, ctx, stmt); err != nil {
+			return nil, err
+		}
+	}
+	return stmt, nil
 }
 
 // Close calls the original Close method.

@@ -17,6 +17,9 @@ type hooks interface {
 	preOpen(c context.Context, name string) (interface{}, error)
 	open(c context.Context, ctx interface{}, conn *Conn) error
 	postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error
+	prePrepare(c context.Context, stmt *Stmt) (interface{}, error)
+	prepare(c context.Context, ctx interface{}, stmt *Stmt) error
+	postPrepare(c context.Context, ctx interface{}, stmt *Stmt, err error) error
 	preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error)
 	exec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result) error
 	postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error
@@ -108,6 +111,36 @@ type HooksContext struct {
 	// The `ctx` parameter is the return value supplied from the
 	// `Hooks.PreOpen` method, and may be nil.
 	PostOpen func(c context.Context, ctx interface{}, conn *Conn, err error) error
+
+	// PrePrepare is a callback that gets called prior to calling
+	// `db.Prepare`, and is ALWAYS called. If this callback returns an
+	// error, the underlying driver's `db.Exec` and `Hooks.Prepare` methods
+	// are not called.
+	//
+	// The first return value is passed to both `Hooks.Prepare` and
+	// `Hooks.PostPrepare` callbacks. You may specify anything you want.
+	// Return nil if you do not need to use it.
+	//
+	// The second return value is indicates the error found while
+	// executing this hook.
+	PrePrepare func(c context.Context, stmt *Stmt) (interface{}, error)
+
+	// Prepare is called after the underlying driver's `db.Prepare` method
+	// returns without any errors.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PrePrepare` method, and may be nil.
+	//
+	// If this callback returns an error, then the error from this
+	// callback is returned by the `db.Prepare` method.
+	Prepare func(c context.Context, ctx interface{}, stmt *Stmt) error
+
+	// PostPrepare is a callback that gets called at the end of
+	// the call to `db.Prepare`. It is ALWAYS called.
+	//
+	// The `ctx` parameter is the return value supplied from the
+	// `Hooks.PrePrepare` method, and may be nil.
+	PostPrepare func(c context.Context, ctx interface{}, stmt *Stmt, err error) error
 
 	// PreExec is a callback that gets called prior to calling
 	// `Stmt.Exec`, and is ALWAYS called. If this callback returns an
@@ -403,6 +436,27 @@ func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn *Conn, 
 		return nil
 	}
 	return h.PostOpen(c, ctx, conn, err)
+}
+
+func (h *HooksContext) prePrepare(c context.Context, stmt *Stmt) (interface{}, error) {
+	if h == nil || h.PrePrepare == nil {
+		return nil, nil
+	}
+	return h.PrePrepare(c, stmt)
+}
+
+func (h *HooksContext) prepare(c context.Context, ctx interface{}, stmt *Stmt) error {
+	if h == nil || h.Prepare == nil {
+		return nil
+	}
+	return h.Prepare(c, ctx, stmt)
+}
+
+func (h *HooksContext) postPrepare(c context.Context, ctx interface{}, stmt *Stmt, err error) error {
+	if h == nil || h.PostPrepare == nil {
+		return nil
+	}
+	return h.PostPrepare(c, ctx, stmt, err)
 }
 
 func (h *HooksContext) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
@@ -929,6 +983,18 @@ func (h *Hooks) postOpen(c context.Context, ctx interface{}, conn *Conn, err err
 	return h.PostOpen(ctx, conn)
 }
 
+func (h *Hooks) prePrepare(c context.Context, stmt *Stmt) (interface{}, error) {
+	return nil, nil
+}
+
+func (h *Hooks) prepare(c context.Context, ctx interface{}, stmt *Stmt) error {
+	return nil
+}
+
+func (h *Hooks) postPrepare(c context.Context, ctx interface{}, stmt *Stmt, err error) error {
+	return nil
+}
+
 func (h *Hooks) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
 	if h == nil || h.PreExec == nil {
 		return nil, nil
@@ -1184,6 +1250,24 @@ func (h multipleHooks) open(c context.Context, ctx interface{}, conn *Conn) erro
 func (h multipleHooks) postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
 		return h.postOpen(c, ctx, conn, err)
+	})
+}
+
+func (h multipleHooks) prePrepare(c context.Context, stmt *Stmt) (interface{}, error) {
+	return h.preDo(func(h hooks) (interface{}, error) {
+		return h.prePrepare(c, stmt)
+	})
+}
+
+func (h multipleHooks) prepare(c context.Context, ctx interface{}, stmt *Stmt) error {
+	return h.do(ctx, func(h hooks, ctx interface{}) error {
+		return h.prepare(c, ctx, stmt)
+	})
+}
+
+func (h multipleHooks) postPrepare(c context.Context, ctx interface{}, stmt *Stmt, err error) error {
+	return h.postDo(ctx, err, func(h hooks, ctx interface{}, err error) error {
+		return h.postPrepare(c, ctx, stmt, err)
 	})
 }
 
