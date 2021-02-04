@@ -63,7 +63,7 @@ type HooksContext struct {
 	// methods are not called.
 	PrePing func(c context.Context, conn *Conn) (interface{}, error)
 
-	// Ping is called after the underlying driver's `Conn.Exec` method
+	// Ping is called after the underlying driver's `Conn.Ping` method
 	// returns without any errors.
 	//
 	// The `ctx` parameter is the return value supplied from the
