@@ -62,7 +62,7 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           env_vars: OS,GO
-          working-directory: src/github.com/shogo82148/go-sql-proxy
+          root_dir: src/github.com/shogo82148/go-sql-proxy
         env:
           OS: ${{ matrix.os }}
           GO: ${{ matrix.go }}
