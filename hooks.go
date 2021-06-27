@@ -930,17 +930,6 @@ func namedValuesToValues(args []driver.NamedValue) ([]driver.Value, error) {
 	return ret, err
 }
 
-func valuesToNamedValues(args []driver.Value) []driver.NamedValue {
-	ret := make([]driver.NamedValue, len(args))
-	for i, arg := range args {
-		ret[i] = driver.NamedValue{
-			Ordinal: i + 1,
-			Value:   arg,
-		}
-	}
-	return ret
-}
-
 func (h *Hooks) prePing(c context.Context, conn *Conn) (interface{}, error) {
 	if h == nil || h.PrePing == nil {
 		return nil, nil
