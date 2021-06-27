@@ -24,7 +24,7 @@ type Proxy struct {
 }
 
 // NewProxy creates new Proxy driver.
-// DEPRECATED: You should use NewProxyContext instead.
+// Deprecated: You should use NewProxyContext instead.
 func NewProxy(driver driver.Driver, hs ...*Hooks) *Proxy {
 	switch {
 	case len(hs) == 0:
