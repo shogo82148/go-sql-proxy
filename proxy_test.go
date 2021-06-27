@@ -454,7 +454,7 @@ func TestFakeDB(t *testing.T) {
 				// check whether *Proxy has the OpenConnector method
 				if _, ok := reflect.TypeOf((*Proxy)(nil)).MethodByName("OpenConnector"); ok {
 					// Connector is supported. Open events are disable by WithHooks.
-					return "\n[PreClose]\n[Close]\n[PostClose]\n"
+					return "[PreClose]\n[Close]\n[PostClose]\n"
 				}
 				return "[PreOpen]\n[Open]\n[PostOpen]\n[PreClose]\n[Close]\n[PostClose]\n"
 			}(),
