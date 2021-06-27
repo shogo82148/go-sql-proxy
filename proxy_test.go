@@ -450,7 +450,14 @@ func TestFakeDB(t *testing.T) {
 				Name:     "context-with-hooks",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: "[PreClose]\n[Close]\n[PostClose]\n",
+			hooksLog: func() string {
+				// check whether *Proxy has the OpenConnector method
+				if _, ok := reflect.TypeOf((*Proxy)(nil)).MethodByName("OpenConnector"); ok {
+					// Connector is supported. Open events are disable by WithHooks.
+					return "\n[PreClose]\n[Close]\n[PostClose]\n"
+				}
+				return "[PreOpen]\n[Open]\n[PostOpen]\n[PreClose]\n[Close]\n[PostClose]\n"
+			}(),
 			f: func(db *sql.DB) error {
 				buf := &bytes.Buffer{}
 				ctx := context.WithValue(context.Background(), contextHooksKey{}, newLoggingHook(buf))
@@ -462,10 +469,10 @@ func TestFakeDB(t *testing.T) {
 					var want string
 					// check whether *Proxy has the OpenConnector method
 					if _, ok := reflect.TypeOf(p).MethodByName("OpenConnector"); ok {
-						// Connector is supported. We can trace Open events.
+						// Connector is supported. We can trace Open events by WithHooks.
 						want = "[PreOpen]\n[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n"
 					} else {
-						// Connector is not supported. We can't trace Open events.
+						// Connector is not supported. We can't trace Open events by WithHooks.
 						want = "[PreExec]\n[Exec]\n[PostExec]\n"
 					}
 					got := buf.String()
