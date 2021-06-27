@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -457,9 +458,17 @@ func TestFakeDB(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if _, ok := db.Driver().(*Proxy); ok {
+				if p, ok := db.Driver().(*Proxy); ok {
+					var want string
+					// check whether *Proxy has the OpenConnector method
+					if _, ok := reflect.TypeOf(p).MethodByName("OpenConnector"); ok {
+						// Connector is supported. We can trace Open events.
+						want = "[PreOpen]\n[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n"
+					} else {
+						// Connector is not supported. We can't trace Open events.
+						want = "[PreExec]\n[Exec]\n[PostExec]\n"
+					}
 					got := buf.String()
-					want := "[PreOpen]\n[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n"
 					if got != want {
 						return fmt.Errorf("want %s, got %s", want, got)
 					}

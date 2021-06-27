@@ -13,6 +13,7 @@ import (
 
 var _ io.Closer = (*Connector)(nil)
 var _ driver.Connector = (*Connector)(nil)
+var _ driver.DriverContext = (*Proxy)(nil)
 
 var _ io.Closer = (*closerConnector)(nil)
 var _ driver.Connector = (*closerConnector)(nil)
