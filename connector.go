@@ -6,6 +6,7 @@ package proxy
 import (
 	"context"
 	"database/sql/driver"
+	"io"
 )
 
 // Connector adds hook points into "database/sql/driver".Connector.
@@ -58,6 +59,15 @@ func (c *Connector) Driver() driver.Driver {
 	return c.Proxy
 }
 
+// Close closes the c.Connector if it implements the io.Closer interface.
+// It is called by the DB.Close method from Go 1.17.
+func (c *Connector) Close() error {
+	if c, ok := c.Connector.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
 // NewConnector creates new proxied Connector.
 func NewConnector(c driver.Connector, hs ...*HooksContext) driver.Connector {
 	p := NewProxyContext(c.Driver(), hs...)
@@ -91,7 +101,7 @@ func (c *fallbackConnector) Driver() driver.Driver {
 	return c.driver
 }
 
-// OpenConnector OpenConnector new connector which is wrapped by Connector.
+// OpenConnector creates a new connector which is wrapped by Connector.
 // It will triggers PreOpen, Open, PostOpen hooks.
 func (p *Proxy) OpenConnector(name string) (driver.Connector, error) {
 	if d, ok := p.Driver.(driver.DriverContext); ok {
