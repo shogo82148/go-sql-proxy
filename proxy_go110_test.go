@@ -1,3 +1,6 @@
+//go:build go1.10
+// +build go1.10
+
 package proxy
 
 import (
@@ -10,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestFakeDB(t *testing.T) {
+func TestFakeDBCtx(t *testing.T) {
 	testName := t.Name()
 	testCases := []struct {
 		opt      *fakeConnOption
@@ -475,9 +478,9 @@ func TestFakeDB(t *testing.T) {
 			// install a proxy
 			name := tc.opt.Name
 			buf := &bytes.Buffer{}
-			driverName := fmt.Sprintf("%s-proxy-%s", testName, name)
+			driverName := fmt.Sprintf("%s-proxy-ctx-%s", testName, name)
 			sql.Register(driverName, &Proxy{
-				Driver: fdriver,
+				Driver: fdriverctx,
 				hooks:  newLoggingHook(buf),
 			})
 
@@ -487,7 +490,7 @@ func TestFakeDB(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			db, err := sql.Open("fakedb", string(dbName))
+			db, err := sql.Open("fakedbctx", string(dbName))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -512,8 +515,8 @@ func TestFakeDB(t *testing.T) {
 			dbProxy.Close()
 
 			// check the logs
-			want := fdriver.DB(string(dbName)).LogToString()
-			got := fdriver.DB(string(dbProxyName)).LogToString()
+			want := fdriverctx.DB(string(dbName)).LogToString()
+			got := fdriverctx.DB(string(dbProxyName)).LogToString()
 			if want != got {
 				t.Errorf("want %s, got %s", want, got)
 			}

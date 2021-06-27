@@ -19,9 +19,9 @@ type fakeConnector struct {
 	db     *fakeDB
 }
 
-var fdriverctx = &fakeDriver{}
-var _ driver.DriverContext = &fakeDriverCtx{}
-var _ driver.Connector = &fakeConnector{}
+var fdriverctx = &fakeDriverCtx{}
+var _ driver.DriverContext = (*fakeDriverCtx)(nil)
+var _ driver.Connector = (*fakeConnector)(nil)
 
 func init() {
 	sql.Register("fakedbctx", fdriverctx)
