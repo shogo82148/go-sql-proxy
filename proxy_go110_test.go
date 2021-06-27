@@ -1,3 +1,6 @@
+//go:build go1.10
+// +build go1.10
+
 package proxy
 
 import (
@@ -7,11 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
-func TestFakeDB(t *testing.T) {
+func TestFakeDBCtx(t *testing.T) {
 	testName := t.Name()
 	testCases := []struct {
 		opt      *fakeConnOption
@@ -450,14 +452,7 @@ func TestFakeDB(t *testing.T) {
 				Name:     "context-with-hooks",
 				ConnType: "fakeConnCtx",
 			},
-			hooksLog: func() string {
-				// check whether *Proxy has the OpenConnector method
-				if _, ok := reflect.TypeOf((*Proxy)(nil)).MethodByName("OpenConnector"); ok {
-					// Connector is supported. Open events are disable by WithHooks.
-					return "[PreClose]\n[Close]\n[PostClose]\n"
-				}
-				return "[PreOpen]\n[Open]\n[PostOpen]\n[PreClose]\n[Close]\n[PostClose]\n"
-			}(),
+			hooksLog: "[PreClose]\n[Close]\n[PostClose]\n",
 			f: func(db *sql.DB) error {
 				buf := &bytes.Buffer{}
 				ctx := context.WithValue(context.Background(), contextHooksKey{}, newLoggingHook(buf))
@@ -465,17 +460,9 @@ func TestFakeDB(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if p, ok := db.Driver().(*Proxy); ok {
-					var want string
-					// check whether *Proxy has the OpenConnector method
-					if _, ok := reflect.TypeOf(p).MethodByName("OpenConnector"); ok {
-						// Connector is supported. We can trace Open events by WithHooks.
-						want = "[PreOpen]\n[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n"
-					} else {
-						// Connector is not supported. We can't trace Open events by WithHooks.
-						want = "[PreExec]\n[Exec]\n[PostExec]\n"
-					}
+				if _, ok := db.Driver().(*Proxy); ok {
 					got := buf.String()
+					want := "[PreOpen]\n[Open]\n[PostOpen]\n[PreExec]\n[Exec]\n[PostExec]\n"
 					if got != want {
 						return fmt.Errorf("want %s, got %s", want, got)
 					}
@@ -491,9 +478,9 @@ func TestFakeDB(t *testing.T) {
 			// install a proxy
 			name := tc.opt.Name
 			buf := &bytes.Buffer{}
-			driverName := fmt.Sprintf("%s-proxy-%s", testName, name)
+			driverName := fmt.Sprintf("%s-proxy-ctx-%s", testName, name)
 			sql.Register(driverName, &Proxy{
-				Driver: fdriver,
+				Driver: fdriverctx,
 				hooks:  newLoggingHook(buf),
 			})
 
@@ -503,7 +490,7 @@ func TestFakeDB(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			db, err := sql.Open("fakedb", string(dbName))
+			db, err := sql.Open("fakedbctx", string(dbName))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -528,8 +515,8 @@ func TestFakeDB(t *testing.T) {
 			dbProxy.Close()
 
 			// check the logs
-			want := fdriver.DB(string(dbName)).LogToString()
-			got := fdriver.DB(string(dbProxyName)).LogToString()
+			want := fdriverctx.DB(string(dbName)).LogToString()
+			got := fdriverctx.DB(string(dbProxyName)).LogToString()
 			if want != got {
 				t.Errorf("want %s, got %s", want, got)
 			}

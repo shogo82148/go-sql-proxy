@@ -13,6 +13,7 @@ import (
 
 var _ io.Closer = (*Connector)(nil)
 var _ driver.Connector = (*Connector)(nil)
+var _ driver.DriverContext = (*Proxy)(nil)
 
 var _ io.Closer = (*closerConnector)(nil)
 var _ driver.Connector = (*closerConnector)(nil)
@@ -41,7 +42,7 @@ func (c *closerConnector) Close() error {
 func TestConnectorClose(t *testing.T) {
 	t.Run("c.Connector doesn't implement io.Closer", func(t *testing.T) {
 		c0 := &fakeConnector{
-			driver: &fakeDriverCtx{},
+			driver: fdriverctx,
 		}
 		c1 := NewConnector(c0)
 		if err := c1.(io.Closer).Close(); err != nil {
