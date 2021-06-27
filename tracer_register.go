@@ -14,7 +14,10 @@ func RegisterTracer() {
 		if strings.HasSuffix(driver, ":trace") || strings.HasSuffix(driver, ":proxy") {
 			continue
 		}
-		db, _ := sql.Open(driver, "")
+		db, err := sql.Open(driver, "")
+		if err != nil {
+			continue
+		}
 		defer db.Close()
 		sql.Register(driver+":trace", NewTraceProxy(db.Driver(), logger{}))
 	}
