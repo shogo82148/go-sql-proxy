@@ -59,11 +59,12 @@ jobs:
           working-directory: src/github.com/shogo82148/go-sql-proxy
           flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
       - name: Send coverage to codecov.io
-        run: bash <(curl -s https://codecov.io/bash)
-        shell: bash
+        uses: codecov/codecov-action@v1
+        with:
+          env_vars: OS,GO
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        working-directory: src/github.com/shogo82148/go-sql-proxy
+          OS: ${{ matrix.os }}
+          GO: ${{ matrix.go }}
   finish:
     needs: test
     runs-on: ubuntu-latest
