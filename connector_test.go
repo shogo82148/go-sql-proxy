@@ -39,6 +39,16 @@ func (c *closerConnector) Close() error {
 }
 
 func TestConnectorClose(t *testing.T) {
+	t.Run("c.Connector doesn't implement io.Closer", func(t *testing.T) {
+		c0 := &fakeConnector{
+			driver: &fakeDriverCtx{},
+		}
+		c1 := NewConnector(c0)
+		if err := c1.(io.Closer).Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
 	t.Run("Closing c.Connector succeeds", func(t *testing.T) {
 		c0 := &closerConnector{}
 		c1 := NewConnector(c0)
