@@ -28,6 +28,10 @@ jobs:
           - "1.9"
           - "1.8"
 
+    env:
+      OS: ${{ matrix.os }}
+      GO: ${{ matrix.go }}
+
     steps:
       - name: Set up Go ${{ matrix.go }}
         uses: actions/setup-go@v2
@@ -59,7 +63,7 @@ jobs:
           working-directory: src/github.com/shogo82148/go-sql-proxy
           flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
       - name: Send coverage to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
         with:
           env_vars: OS,GO
           root_dir: src/github.com/shogo82148/go-sql-proxy
