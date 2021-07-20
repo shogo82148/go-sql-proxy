@@ -28,10 +28,6 @@ jobs:
           - "1.9"
           - "1.8"
 
-    env:
-      OS: ${{ matrix.os }}
-      GO: ${{ matrix.go }}
-
     steps:
       - name: Set up Go ${{ matrix.go }}
         uses: actions/setup-go@v2
