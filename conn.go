@@ -189,13 +189,14 @@ func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error)
 	panic("not supported")
 }
 
-// ExecContext calls the original Exec method of the connection.
-// It will trigger PreExec, Exec, PostExec hooks.
+// ExecContext calls the original ExecContext (or Exec as a fallback) method of the connection.
+// It will trigger PreExec, PostExec hooks.
 //
-// If the original connection does not satisfy "database/sql/driver".Execer, it return ErrSkip error.
+// If the original connection doesn't satisfy "database/sql/driver".ExecerContext nor "database/sql/driver".Execer, it return ErrSkip error.
 func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	execer, ok := conn.Conn.(driver.Execer)
-	if !ok {
+	execer, exOk := conn.Conn.(driver.Execer)
+	execerCtx, exCtxOk := conn.Conn.(driver.ExecerContext)
+	if !exOk && !exCtxOk {
 		return nil, driver.ErrSkip
 	}
 
@@ -217,7 +218,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 	}
 
 	// call the original method.
-	if execerCtx, ok := execer.(driver.ExecerContext); ok {
+	if execerCtx != nil {
 		result, err = execerCtx.ExecContext(c, stmt.QueryString, args)
 	} else {
 		select {
