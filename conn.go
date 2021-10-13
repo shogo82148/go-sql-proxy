@@ -190,9 +190,9 @@ func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error)
 }
 
 // ExecContext calls the original ExecContext (or Exec as a fallback) method of the connection.
-// It will trigger PreExec, PostExec hooks.
+// It will trigger PreExec, Exec, PostExec hooks.
 //
-// If the original connection doesn't satisfy "database/sql/driver".ExecerContext nor "database/sql/driver".Execer, it return ErrSkip error.
+// If the original connection does not satisfy "database/sql/driver".ExecerContext nor "database/sql/driver".Execer, it return ErrSkip error.
 func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	execer, exOk := conn.Conn.(driver.Execer)
 	execerCtx, exCtxOk := conn.Conn.(driver.ExecerContext)
@@ -257,10 +257,11 @@ func (conn *Conn) Query(query string, args []driver.Value) (driver.Rows, error) 
 // QueryContext executes a query that may return rows.
 // It wil trigger PreQuery, Query, PostQuery hooks.
 //
-// If the original connection does not satisfy "database/sql/driver".Queryer, it return ErrSkip error.
+// If the original connection does not satisfy "database/sql/driver".QueryerContext nor "database/sql/driver".Queryer, it return ErrSkip error.
 func (conn *Conn) QueryContext(c context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	queryer, ok := conn.Conn.(driver.Queryer)
-	if !ok {
+	queryer, qok := conn.Conn.(driver.Queryer)
+	queryerCtx, qCtxOk := conn.Conn.(driver.QueryerContext)
+	if !qok && !qCtxOk {
 		return nil, driver.ErrSkip
 	}
 
@@ -281,7 +282,7 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 	}
 
 	// call the original method.
-	if queryerCtx, ok := conn.Conn.(driver.QueryerContext); ok {
+	if queryerCtx != nil {
 		rows, err = queryerCtx.QueryContext(c, stmt.QueryString, args)
 	} else {
 		select {
