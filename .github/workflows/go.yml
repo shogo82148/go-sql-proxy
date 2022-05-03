@@ -61,7 +61,7 @@ jobs:
           working-directory: src/github.com/shogo82148/go-sql-proxy
           flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
       - name: Send coverage to codecov.io
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           env_vars: OS,GO
           root_dir: src/github.com/shogo82148/go-sql-proxy
