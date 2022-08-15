@@ -37,7 +37,7 @@ func (h *loggingHook) postPing(c context.Context, ctx interface{}, conn *Conn, e
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostPing]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preOpen(c context.Context, name string) (interface{}, error) {
@@ -58,7 +58,7 @@ func (h *loggingHook) postOpen(c context.Context, ctx interface{}, conn *Conn, e
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostOpen]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) prePrepare(c context.Context, stmt *Stmt) (interface{}, error) {
@@ -79,7 +79,7 @@ func (h *loggingHook) postPrepare(c context.Context, ctx interface{}, stmt *Stmt
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostPrepare]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preExec(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
@@ -100,7 +100,7 @@ func (h *loggingHook) postExec(c context.Context, ctx interface{}, stmt *Stmt, a
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostExec]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preQuery(c context.Context, stmt *Stmt, args []driver.NamedValue) (interface{}, error) {
@@ -121,7 +121,7 @@ func (h *loggingHook) postQuery(c context.Context, ctx interface{}, stmt *Stmt, 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostQuery]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preBegin(c context.Context, conn *Conn) (interface{}, error) {
@@ -142,7 +142,7 @@ func (h *loggingHook) postBegin(c context.Context, ctx interface{}, conn *Conn, 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostBegin]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preCommit(c context.Context, tx *Tx) (interface{}, error) {
@@ -163,7 +163,7 @@ func (h *loggingHook) postCommit(c context.Context, ctx interface{}, tx *Tx, err
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostCommit]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preRollback(c context.Context, tx *Tx) (interface{}, error) {
@@ -184,7 +184,7 @@ func (h *loggingHook) postRollback(c context.Context, ctx interface{}, tx *Tx, e
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostRollback]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preClose(c context.Context, conn *Conn) (interface{}, error) {
@@ -205,7 +205,7 @@ func (h *loggingHook) postClose(c context.Context, ctx interface{}, conn *Conn, 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	fmt.Fprintln(h, "[PostClose]")
-	return nil
+	return err
 }
 
 func (h *loggingHook) preResetSession(c context.Context, conn *Conn) (interface{}, error) {
@@ -217,7 +217,7 @@ func (h *loggingHook) resetSession(c context.Context, ctx interface{}, conn *Con
 }
 
 func (h *loggingHook) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
-	return nil
+	return err
 }
 
 func (h *loggingHook) preIsValid(conn *Conn) (interface{}, error) {

@@ -193,7 +193,7 @@ func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error)
 // It will trigger PreExec, Exec, PostExec hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".ExecerContext nor "database/sql/driver".Execer, it return ErrSkip error.
-func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (drv driver.Result, err error) {
 	execer, exOk := conn.Conn.(driver.Execer)
 	execerCtx, exCtxOk := conn.Conn.(driver.ExecerContext)
 	if !exOk && !exCtxOk {
@@ -207,11 +207,9 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		Conn:        conn,
 	}
 	var ctx interface{}
-	var err error
-	var result driver.Result
 	hooks := conn.Proxy.getHooks(c)
 	if hooks != nil {
-		defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
+		defer func() { err = hooks.postExec(c, ctx, stmt, args, drv, err) }()
 		if ctx, err = hooks.preExec(c, stmt, args); err != nil {
 			return nil, err
 		}
@@ -219,7 +217,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 
 	// call the original method.
 	if execerCtx != nil {
-		result, err = execerCtx.ExecContext(c, stmt.QueryString, args)
+		drv, err = execerCtx.ExecContext(c, stmt.QueryString, args)
 	} else {
 		select {
 		default:
@@ -230,19 +228,18 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		if err0 != nil {
 			return nil, err0
 		}
-		result, err = execer.Exec(stmt.QueryString, dargs)
+		drv, err = execer.Exec(stmt.QueryString, dargs)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	if hooks != nil {
-		if err = hooks.exec(c, ctx, stmt, args, result); err != nil {
+		if err = hooks.exec(c, ctx, stmt, args, drv); err != nil {
 			return nil, err
 		}
 	}
-
-	return result, nil
+	return drv, err
 }
 
 // Query executes a query that may return rows.
