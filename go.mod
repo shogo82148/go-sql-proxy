@@ -1,3 +1,3 @@
-module github.com/shogo82148/go-sql-proxy
+module github.com/cdleo/go-sql-proxy
 
 go 1.17
