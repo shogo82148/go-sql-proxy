@@ -28,48 +28,36 @@ jobs:
           - "1.13"
           - "1.12"
           - "1.11"
-          - "1.10"
-          - "1.9"
-          - "1.8"
 
     steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
       - name: Set up Go ${{ matrix.go }}
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
-        id: go
-      - run: |
-          go version
-          echo GOPATH="$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
-        shell: bash
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
-        with:
-          path: src/github.com/shogo82148/go-sql-proxy
 
       - name: Test
         run: go test -v -coverprofile=coverage.txt .
-        env:
-          GO111MODULE: "on"
         shell: bash
-        working-directory: src/github.com/shogo82148/go-sql-proxy
 
       - name: Send coverage to coveralls.io
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: coverage.txt
           parallel: true
-          working-directory: src/github.com/shogo82148/go-sql-proxy
           flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
+
       - name: Send coverage to codecov.io
         uses: codecov/codecov-action@v3
         with:
           env_vars: OS,GO
-          root_dir: src/github.com/shogo82148/go-sql-proxy
+          root_dir: .
         env:
           OS: ${{ matrix.os }}
           GO: ${{ matrix.go }}
+
   finish:
     needs: test
     runs-on: ubuntu-latest
