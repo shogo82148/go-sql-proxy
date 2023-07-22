@@ -412,7 +412,7 @@ func (h *HooksContext) ping(c context.Context, ctx interface{}, conn *Conn) erro
 
 func (h *HooksContext) postPing(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostPing == nil {
-		return nil
+		return err
 	}
 	return h.PostPing(c, ctx, conn, err)
 }
@@ -433,7 +433,7 @@ func (h *HooksContext) open(c context.Context, ctx interface{}, conn *Conn) erro
 
 func (h *HooksContext) postOpen(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostOpen == nil {
-		return nil
+		return err
 	}
 	return h.PostOpen(c, ctx, conn, err)
 }
@@ -454,7 +454,7 @@ func (h *HooksContext) prepare(c context.Context, ctx interface{}, stmt *Stmt) e
 
 func (h *HooksContext) postPrepare(c context.Context, ctx interface{}, stmt *Stmt, err error) error {
 	if h == nil || h.PostPrepare == nil {
-		return nil
+		return err
 	}
 	return h.PostPrepare(c, ctx, stmt, err)
 }
@@ -475,7 +475,7 @@ func (h *HooksContext) exec(c context.Context, ctx interface{}, stmt *Stmt, args
 
 func (h *HooksContext) postExec(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, result driver.Result, err error) error {
 	if h == nil || h.PostExec == nil {
-		return nil
+		return err
 	}
 	return h.PostExec(c, ctx, stmt, args, result, err)
 }
@@ -496,7 +496,7 @@ func (h *HooksContext) query(c context.Context, ctx interface{}, stmt *Stmt, arg
 
 func (h *HooksContext) postQuery(c context.Context, ctx interface{}, stmt *Stmt, args []driver.NamedValue, rows driver.Rows, err error) error {
 	if h == nil || h.PostQuery == nil {
-		return nil
+		return err
 	}
 	return h.PostQuery(c, ctx, stmt, args, rows, err)
 }
@@ -517,7 +517,7 @@ func (h *HooksContext) begin(c context.Context, ctx interface{}, conn *Conn) err
 
 func (h *HooksContext) postBegin(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostBegin == nil {
-		return nil
+		return err
 	}
 	return h.PostBegin(c, ctx, conn, err)
 }
@@ -538,7 +538,7 @@ func (h *HooksContext) commit(c context.Context, ctx interface{}, tx *Tx) error 
 
 func (h *HooksContext) postCommit(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	if h == nil || h.PostCommit == nil {
-		return nil
+		return err
 	}
 	return h.PostCommit(c, ctx, tx, err)
 }
@@ -559,7 +559,7 @@ func (h *HooksContext) rollback(c context.Context, ctx interface{}, tx *Tx) erro
 
 func (h *HooksContext) postRollback(c context.Context, ctx interface{}, tx *Tx, err error) error {
 	if h == nil || h.PostRollback == nil {
-		return nil
+		return err
 	}
 	return h.PostRollback(c, ctx, tx, err)
 }
@@ -580,7 +580,7 @@ func (h *HooksContext) close(c context.Context, ctx interface{}, conn *Conn) err
 
 func (h *HooksContext) postClose(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostClose == nil {
-		return nil
+		return err
 	}
 	return h.PostClose(c, ctx, conn, err)
 }
@@ -601,7 +601,7 @@ func (h *HooksContext) resetSession(c context.Context, ctx interface{}, conn *Co
 
 func (h *HooksContext) postResetSession(c context.Context, ctx interface{}, conn *Conn, err error) error {
 	if h == nil || h.PostResetSession == nil {
-		return nil
+		return err
 	}
 	return h.PostResetSession(c, ctx, conn, err)
 }
