@@ -17,12 +17,13 @@ type Conn struct {
 // It will trigger PrePing, Ping, PostPing hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".Pinger, it does nothing.
-func (conn *Conn) Ping(c context.Context) (err error) {
+func (conn *Conn) Ping(c context.Context) error {
+	var err error
 	var ctx interface{}
 	hooks := conn.Proxy.getHooks(c)
 
 	if hooks != nil {
-		defer func() { err = hooks.postPing(c, ctx, conn, err) }()
+		defer func() { hooks.postPing(c, ctx, conn, err) }()
 		if ctx, err = hooks.prePing(c, conn); err != nil {
 			return err
 		}
@@ -48,30 +49,31 @@ func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 // PrepareContext returns a prepared statement which is wrapped by Stmt.
-func (conn *Conn) PrepareContext(c context.Context, query string) (stmt driver.Stmt, err error) {
+func (conn *Conn) PrepareContext(c context.Context, query string) (driver.Stmt, error) {
 	var ctx interface{}
-	var stmtAux = &Stmt{
+	var stmt = &Stmt{
 		QueryString: query,
 		Proxy:       conn.Proxy,
 		Conn:        conn,
 	}
+	var err error
 	hooks := conn.Proxy.getHooks(c)
 	if hooks != nil {
-		defer func() { err = hooks.postPrepare(c, ctx, stmtAux, err) }()
-		if ctx, err = hooks.prePrepare(c, stmtAux); err != nil {
+		defer func() { hooks.postPrepare(c, ctx, stmt, err) }()
+		if ctx, err = hooks.prePrepare(c, stmt); err != nil {
 			return nil, err
 		}
 	}
 
 	if connCtx, ok := conn.Conn.(driver.ConnPrepareContext); ok {
-		stmtAux.Stmt, err = connCtx.PrepareContext(c, stmtAux.QueryString)
+		stmt.Stmt, err = connCtx.PrepareContext(c, stmt.QueryString)
 	} else {
-		stmtAux.Stmt, err = conn.Conn.Prepare(stmtAux.QueryString)
+		stmt.Stmt, err = conn.Conn.Prepare(stmt.QueryString)
 		if err == nil {
 			select {
 			default:
 			case <-c.Done():
-				stmtAux.Stmt.Close()
+				stmt.Stmt.Close()
 				return nil, c.Err()
 			}
 		}
@@ -81,20 +83,21 @@ func (conn *Conn) PrepareContext(c context.Context, query string) (stmt driver.S
 	}
 
 	if hooks != nil {
-		if err = hooks.prepare(c, ctx, stmtAux); err != nil {
+		if err = hooks.prepare(c, ctx, stmt); err != nil {
 			return nil, err
 		}
 	}
-	return stmtAux, nil
+	return stmt, nil
 }
 
 // Close calls the original Close method.
-func (conn *Conn) Close() (err error) {
+func (conn *Conn) Close() error {
 	ctx := context.Background()
+	var err error
 	var myctx interface{}
 
 	if hooks := conn.Proxy.hooks; hooks != nil {
-		defer func() { err = hooks.postClose(ctx, myctx, conn, err) }()
+		defer func() { hooks.postClose(ctx, myctx, conn, err) }()
 		if myctx, err = hooks.preClose(ctx, conn); err != nil {
 			return err
 		}
@@ -120,12 +123,14 @@ func (conn *Conn) Begin() (driver.Tx, error) {
 
 // BeginTx starts and returns a new transaction which is wrapped by Tx.
 // It will trigger PreBegin, Begin, PostBegin hooks.
-func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (tx driver.Tx, err error) {
+func (conn *Conn) BeginTx(c context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	// set the hooks.
+	var err error
 	var ctx interface{}
+	var tx driver.Tx
 	hooks := conn.Proxy.getHooks(c)
 	if hooks != nil {
-		defer func() { err = hooks.postBegin(c, ctx, conn, err) }()
+		defer func() { hooks.postBegin(c, ctx, conn, err) }()
 		if ctx, err = hooks.preBegin(c, conn); err != nil {
 			return nil, err
 		}
@@ -188,7 +193,7 @@ func (conn *Conn) Exec(query string, args []driver.Value) (driver.Result, error)
 // It will trigger PreExec, Exec, PostExec hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".ExecerContext nor "database/sql/driver".Execer, it return ErrSkip error.
-func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (drv driver.Result, err error) {
+func (conn *Conn) ExecContext(c context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	execer, exOk := conn.Conn.(driver.Execer)
 	execerCtx, exCtxOk := conn.Conn.(driver.ExecerContext)
 	if !exOk && !exCtxOk {
@@ -202,9 +207,11 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		Conn:        conn,
 	}
 	var ctx interface{}
+	var err error
+	var result driver.Result
 	hooks := conn.Proxy.getHooks(c)
 	if hooks != nil {
-		defer func() { err = hooks.postExec(c, ctx, stmt, args, drv, err) }()
+		defer func() { hooks.postExec(c, ctx, stmt, args, result, err) }()
 		if ctx, err = hooks.preExec(c, stmt, args); err != nil {
 			return nil, err
 		}
@@ -212,7 +219,7 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 
 	// call the original method.
 	if execerCtx != nil {
-		drv, err = execerCtx.ExecContext(c, stmt.QueryString, args)
+		result, err = execerCtx.ExecContext(c, stmt.QueryString, args)
 	} else {
 		select {
 		default:
@@ -223,18 +230,19 @@ func (conn *Conn) ExecContext(c context.Context, query string, args []driver.Nam
 		if err0 != nil {
 			return nil, err0
 		}
-		drv, err = execer.Exec(stmt.QueryString, dargs)
+		result, err = execer.Exec(stmt.QueryString, dargs)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	if hooks != nil {
-		if err = hooks.exec(c, ctx, stmt, args, drv); err != nil {
+		if err = hooks.exec(c, ctx, stmt, args, result); err != nil {
 			return nil, err
 		}
 	}
-	return drv, err
+
+	return result, nil
 }
 
 // Query executes a query that may return rows.
@@ -250,7 +258,7 @@ func (conn *Conn) Query(query string, args []driver.Value) (driver.Rows, error) 
 // It wil trigger PreQuery, Query, PostQuery hooks.
 //
 // If the original connection does not satisfy "database/sql/driver".QueryerContext nor "database/sql/driver".Queryer, it return ErrSkip error.
-func (conn *Conn) QueryContext(c context.Context, query string, args []driver.NamedValue) (rows driver.Rows, err error) {
+func (conn *Conn) QueryContext(c context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	queryer, qok := conn.Conn.(driver.Queryer)
 	queryerCtx, qCtxOk := conn.Conn.(driver.QueryerContext)
 	if !qok && !qCtxOk {
@@ -263,9 +271,11 @@ func (conn *Conn) QueryContext(c context.Context, query string, args []driver.Na
 		Conn:        conn,
 	}
 	var ctx interface{}
+	var err error
+	var rows driver.Rows
 	hooks := conn.Proxy.getHooks(c)
 	if hooks != nil {
-		defer func() { err = hooks.postQuery(c, ctx, stmt, args, rows, err) }()
+		defer func() { hooks.postQuery(c, ctx, stmt, args, rows, err) }()
 		if ctx, err = hooks.preQuery(c, stmt, args); err != nil {
 			return nil, err
 		}
@@ -333,12 +343,13 @@ type sessionResetter interface {
 }
 
 // ResetSession resets the state of Conn.
-func (conn *Conn) ResetSession(ctx context.Context) (err error) {
+func (conn *Conn) ResetSession(ctx context.Context) error {
+	var err error
 	var myctx interface{}
 	hooks := conn.Proxy.getHooks(ctx)
 
 	if hooks != nil {
-		defer func() { err = hooks.postResetSession(ctx, myctx, conn, err) }()
+		defer func() { hooks.postResetSession(ctx, myctx, conn, err) }()
 		if myctx, err = hooks.preResetSession(ctx, conn); err != nil {
 			return err
 		}
