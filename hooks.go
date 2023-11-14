@@ -509,7 +509,7 @@ func (h *HooksContext) preBegin(c context.Context, conn *Conn) (interface{}, err
 }
 
 func (h *HooksContext) begin(c context.Context, ctx interface{}, conn *Conn) error {
-	if h == nil || h.Open == nil {
+	if h == nil || h.Begin == nil {
 		return nil
 	}
 	return h.Begin(c, ctx, conn)
