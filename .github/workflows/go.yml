@@ -50,8 +50,9 @@ jobs:
           flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
 
       - name: Send coverage to codecov.io
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS,GO
           root_dir: .
         env:
