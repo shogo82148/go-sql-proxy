@@ -17,7 +17,10 @@ jobs:
           - windows-latest
           - macos-latest
         go:
-          - "1"
+          - "stable"
+          - "1.23"
+          - "1.22"
+          - "1.21"
           - "1.20"
           - "1.19"
           - "1.18"
@@ -28,6 +31,19 @@ jobs:
           - "1.13"
           - "1.12"
           - "1.11"
+
+        # old Go versions doesn't support macos-latest
+        exclude:
+          - os: macos-latest
+            go: "1.15"
+          - os: macos-latest
+            go: "1.14"
+          - os: macos-latest
+            go: "1.13"
+          - os: macos-latest
+            go: "1.12"
+          - os: macos-latest
+            go: "1.11"
 
     steps:
       - name: Check out code into the Go module directory
