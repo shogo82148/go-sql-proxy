@@ -1023,10 +1023,12 @@ func TestFakeDBCtx(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err = tc.f(db); err != nil {
+			if err := tc.f(db); err != nil {
 				t.Error(err)
 			}
-			db.Close()
+			if err := db.Close(); err != nil {
+				t.Error(err)
+			}
 
 			// Run test queries via a proxy
 			tc.opt.Name = fmt.Sprintf("%s-proxy-%s", testName, name)
@@ -1038,10 +1040,12 @@ func TestFakeDBCtx(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err = tc.f(dbProxy); err != nil {
+			if err := tc.f(dbProxy); err != nil {
 				t.Error(err)
 			}
-			dbProxy.Close()
+			if err := dbProxy.Close(); err != nil {
+				t.Error(err)
+			}
 
 			// check the logs
 			want := fdriverctx.DB(string(dbName)).LogToString()
