@@ -146,6 +146,7 @@ func (stmt *Stmt) CheckNamedValue(nv *driver.NamedValue) (err error) {
 	if nvc, ok := stmt.Conn.Conn.(namedValueChecker); ok {
 		return nvc.CheckNamedValue(nv)
 	}
-	// fallback to default
-	return defaultCheckNamedValue(nv)
+	// Let database/sql continue the original conversion flow
+	// (for example, ColumnConverter and default conversion).
+	return driver.ErrSkip
 }
