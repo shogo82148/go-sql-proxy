@@ -326,8 +326,8 @@ func (conn *Conn) CheckNamedValue(nv *driver.NamedValue) (err error) {
 	if nvc, ok := conn.Conn.(namedValueChecker); ok {
 		return nvc.CheckNamedValue(nv)
 	}
-	// fallback to default
-	return defaultCheckNamedValue(nv)
+	// Let database/sql continue the original conversion flow.
+	return driver.ErrSkip
 }
 
 // sessionResetter is the same as driver.SessionResetter.

@@ -18,6 +18,9 @@ jobs:
           - macos-latest
         go:
           - "stable"
+          - "1.26"
+          - "1.25"
+          - "1.24"
           - "1.23"
           - "1.22"
           - "1.21"
@@ -77,6 +80,7 @@ jobs:
 
   finish:
     needs: test
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: finish
