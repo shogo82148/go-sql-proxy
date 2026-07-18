@@ -69,14 +69,14 @@ func TestTraceProxy(t *testing.T) {
 	timeComponent := `\(\d+(?:\.\d+)?[^\)]+\)`
 	expected := []*regexp.Regexp{
 		// Fake time component with (\d+\.\d+[^\)]+)
-		regexp.MustCompile(`tracer_test.go:28: Open 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:28: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:35: Begin 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:40: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:43: Query 0x[0-9a-f]+: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:50: Commit 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:58: Begin 0x[0-9a-f]+ ` + timeComponent),
-		regexp.MustCompile(`tracer_test.go:62: Rollback 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:25: Open 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:25: Exec 0x[0-9a-f]+: CREATE TABLE t1 \(id INTEGER PRIMARY KEY\); args = \[\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:32: Begin 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:37: Exec 0x[0-9a-f]+: INSERT INTO t1 \(id\) VALUES\(\?\); args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:40: Query 0x[0-9a-f]+: SELECT id FROM t1 WHERE id = \?; args = \[1\] ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:47: Commit 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:55: Begin 0x[0-9a-f]+ ` + timeComponent),
+		regexp.MustCompile(`tracer_test.go:59: Rollback 0x[0-9a-f]+ ` + timeComponent),
 		regexp.MustCompile(`.*:\d+: Close 0x[0-9a-f]+ ` + timeComponent),
 	}
 
