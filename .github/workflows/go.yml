@@ -18,6 +18,7 @@ jobs:
           - macos-latest
         go:
           - "stable"
+          - "1.27"
           - "1.26"
           - "1.25"
           - "1.24"
