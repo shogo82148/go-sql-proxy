@@ -63,7 +63,7 @@ jobs:
         shell: bash
 
       - name: Send coverage to coveralls.io
-        uses: shogo82148/actions-goveralls@daabb2902148216a0b13c82107a6e67ed97f796e # v1.11.3
+        uses: shogo82148/actions-goveralls@4b30166c2ac96ac557328a27874a16b777f9b8bd # v1.11.4
         with:
           path-to-profile: coverage.txt
           parallel: true
@@ -85,6 +85,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: finish
-        uses: shogo82148/actions-goveralls@daabb2902148216a0b13c82107a6e67ed97f796e # v1.11.3
+        uses: shogo82148/actions-goveralls@4b30166c2ac96ac557328a27874a16b777f9b8bd # v1.11.4
         with:
           parallel-finished: true
