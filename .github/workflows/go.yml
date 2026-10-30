@@ -51,10 +51,10 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
 
       - name: Set up Go ${{ matrix.go }}
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: ${{ matrix.go }}
 
@@ -63,14 +63,14 @@ jobs:
         shell: bash
 
       - name: Send coverage to coveralls.io
-        uses: shogo82148/actions-goveralls@548a2a7896df420c38df648845a5525a33f82585 # v1.11.5
+        uses: shogo82148/actions-goveralls@v1.11.5
         with:
           path-to-profile: coverage.txt
           parallel: true
           flag-name: ${{ matrix.os }}-Go-${{ matrix.go }}
 
       - name: Send coverage to codecov.io
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        uses: codecov/codecov-action@v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS,GO
@@ -85,6 +85,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: finish
-        uses: shogo82148/actions-goveralls@548a2a7896df420c38df648845a5525a33f82585 # v1.11.5
+        uses: shogo82148/actions-goveralls@v1.11.5
         with:
           parallel-finished: true
