@@ -13,7 +13,7 @@ workflows:
         - 'shogo82148/actions-goveralls@v1.11.5'
     '.github/workflows/reviewdog.yml':
         - 'actions/checkout@v7.0.1'
-        - 'reviewdog/action-actionlint@v1.80.6'
+        - 'reviewdog/action-actionlint@v1.80.8'
         - 'reviewdog/action-golangci-lint@v2.10.2'
 dependencies:
     'actions/checkout@v7.0.1':
@@ -43,9 +43,9 @@ dependencies:
         commit: 'sha1-9b3254085494b55a0f7c4c2b3d2d52cc712ce370'
         owner_id: 9919
         repo_id: 259445878
-    'reviewdog/action-actionlint@v1.80.6':
-        ref: 'v1.80.6'
-        commit: 'sha1-48e36f54d8da326b83ab061aee2cc5e01b5ca46f'
+    'reviewdog/action-actionlint@v1.80.8':
+        ref: 'v1.80.8'
+        commit: 'sha1-cfa6a621f27735ccc88d35af9d0608692fd9b9f7'
         owner_id: 48765237
         repo_id: 385059686
     'reviewdog/action-golangci-lint@v2.10.2':
